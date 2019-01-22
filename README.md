@@ -11,7 +11,7 @@ Supported features:
   * SFML window(720x400)
   * (A rather advanced) Debugger
   * Uses the Super PC/Turbo XT BIOS 3.1 with very small changes(added HLT instruction in keyboard loop for energy saving)
-  * and fully working IVT, set up by the BIOS
+  * Fully working IVT
   
   The emulator is planned to support at least the 486 instruction set
   
@@ -23,3 +23,12 @@ Supported features:
   * 32-bit Protected Mode with Paging ☒
   * Intel 486 instructions set ☒
   * Intel 486 instructions set with CPUID and CMPXCHG8B ☒
+  * Intel Pentium instruction set possibly?
+  
+  Incomplete features:
+  * Fully implemented PIC
+  * Fully implemented PIT
+  * DMA and etc.
+  * Graphics modes
+  * Harddrive and booting from it
+  * Full decoding of the instructions in the debugger
