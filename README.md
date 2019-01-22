@@ -2,9 +2,9 @@
 This is self-made x86 interpreter, written in D language. It's private currently, until I polish it more
 Supported features:
   * ALL NEC v20 instructions(unless I missed an instruction(s))
-  * 1MB ram(640KB) usable
+  * 1MB RAM (640KB usable)
   * Text modes 7 and 3(now with colours)
-  * VRI format for loading ROM images(the file format itself is extremely basic and very conveniet to use)
+  * VRI format for loading ROM images(the file format itself is extremely basic and very convenient to use)
   * Periodic timer(IRQ 8)
   * Keyboard
   * SFML window(720x400)
