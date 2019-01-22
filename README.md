@@ -12,3 +12,14 @@ Supported features:
   * (A rather advanced) Debugger
   * Uses the Super PC/Turbo XT BIOS 3.1 with very small changes(added HLT instruction in keyboard loop for energy saving)
   * and fully working IVT, set up by the BIOS
+  
+  The emulator is planned to support at least the 486 instruction set
+  
+  Instruction set implementation steps:
+  * Intel 8086 instructions set ☑
+  * NEC v20 instruction set ☑
+  * 286 Protected Mode ☒
+  * 32-bit Intel 386 instruction set(w/o Protected mode and Paging) ☒
+  * 32-bit Protected Mode with Paging ☒
+  * Intel 486 instructions set ☒
+  * Intel 486 instructions set with CPUID and CMPXCHG8B ☒
