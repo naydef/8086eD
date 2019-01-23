@@ -1,4 +1,4 @@
-# 8086eD
+## 8086eD - x86 Emulator, written in D
 This is self-made x86 interpreter, written in D language. It's private currently, until I polish it more
 
 Supported features:
@@ -16,14 +16,15 @@ Supported features:
   The emulator is planned to support at least the 486 instruction set
   
   Instruction set implementation steps:
-  * Intel 8086 instructions set ☑
-  * NEC v20 instruction set ☑
-  * 286 Protected Mode ☒
-  * 32-bit Intel 386 instruction set(w/o Protected mode and Paging) ☒
-  * 32-bit Protected Mode with Paging ☒
-  * Intel 486 instructions set ☒
-  * Intel 486 instructions set with CPUID and CMPXCHG8B ☒
-  * Intel Pentium instruction set possibly?
+  
+  - [x] Intel 8086 instructions set
+  - [x] NEC v20 instruction set
+  - [ ] Intel 286 Protected Mode
+  - [ ] 32-bit Intel 386 instruction set(w/o Protected mode and Paging)
+  - [ ] 32-bit Protected Mode with Paging
+  - [ ] Intel 486 instructions set
+  - [ ] Intel 486 instructions set with CPUID and CMPXCHG8B
+  - [ ] Intel Pentium instruction set possibly?
   
   Incomplete features:
   * Fully implemented PIC
