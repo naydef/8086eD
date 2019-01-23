@@ -34,4 +34,5 @@ This is self-made x86 interpreter, written in D language. It's private currently
   * Harddrive and booting from it
   * Full decoding of the instructions in the debugger
   
-  I made this emulator, in order to learn more about x86 assembly, IBM-based computers. Also I have several computer with Intel 386 processor, but It doesn't want to boot. So, the next thing to do is to mod its BIOS later on. Writing emulator is nice thing to do :)
+  I made this emulator, in order to learn more about x86 assembly, IBM-based computers. Also I have a computer with Intel 386SX processor, but it doesn't want to boot. So, the next thing to do is to mod its BIOS later and i pratice modifying BIOSes and understanding istructions with this
+ 
