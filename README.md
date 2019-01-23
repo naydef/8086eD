@@ -1,5 +1,5 @@
 # 8086eD - x86 Emulator, written in D
-This is self-made x86 interpreter, written in D language. It's private currently, until I polish it more
+This is self-made x86 interpreter, written in D language. It's private currently, until I polish it more. Expect it very soon
 
  ## Supported features:
   * All NEC v20 instructions(unless I missed an instruction(s))
