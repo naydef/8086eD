@@ -1,8 +1,8 @@
-## 8086eD - x86 Emulator, written in D
+# 8086eD - x86 Emulator, written in D
 This is self-made x86 interpreter, written in D language. It's private currently, until I polish it more
 
-Supported features:
-  * ALL NEC v20 instructions(unless I missed an instruction(s))
+ ## Supported features:
+  * All NEC v20 instructions(unless I missed an instruction(s))
   * 1MB RAM (640KB usable)
   * Text modes 7 and 3(now with colours)
   * VRI format for loading ROM images(the file format itself is extremely basic and very convenient to use)
@@ -15,7 +15,7 @@ Supported features:
   
   The emulator is planned to support at least the 486 instruction set
   
-  Instruction set implementation steps:
+  ## Instruction set implementation steps:
   
   - [x] Intel 8086 instructions set
   - [x] NEC v20 instruction set
@@ -26,10 +26,12 @@ Supported features:
   - [ ] Intel 486 instructions set with CPUID and CMPXCHG8B
   - [ ] Intel Pentium instruction set possibly?
   
-  Incomplete features:
+  ## Incomplete features:
   * Fully implemented PIC
   * Fully implemented PIT
   * DMA and etc.
   * Graphics modes
   * Harddrive and booting from it
   * Full decoding of the instructions in the debugger
+  
+  I made this emulator, in order to learn more about x86 assembly, IBM-based computers. Also I have several computer with Intel 386 processor, but It doesn't want to boot. So, the next thing to do is to mod its BIOS later on. Writing emulator is nice thing to do :)
