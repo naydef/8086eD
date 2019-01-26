@@ -1,0 +1,10 @@
+{
+	"dub": {
+		"lastUpgrade": "2018-11-24T13:28:28.1708661",
+		"cachedUpgrades": {
+			"ncurses": "~master",
+			"pdcurses-d": "1.0.0",
+			"dsfml": "~>2.1.1"
+		}
+	}
+}
