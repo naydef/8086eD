@@ -106,15 +106,15 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 						ubyte attribute=RamPtr[video_state.baseRamAddress+(h*160+w*2+1)];
 						if(attribute&0x70)
 						{
-							DrawChar(drawscreen, character, w, h, Color(0xAA, 0xAA, 0xAA), Color(0, 0, 0));
+							DrawChar(drawscreen, character, w, h, color_array[15], color_array[0]);
 						}
 						else if(!attribute)
 						{
-							DrawChar(drawscreen, character, w, h, Color(0, 0, 0), Color(0, 0, 0));
+							DrawChar(drawscreen, character, w, h, color_array[0], color_array[0]);
 						}
 						else
 						{
-							DrawChar(drawscreen, character, w, h, Color(0, 0, 0), Color(0xAA, 0xAA, 0xAA));
+							DrawChar(drawscreen, character, w, h, color_array[0], color_array[7]);
 						}
 					}
 				}
@@ -151,82 +151,31 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 	}
 }
 
-Color GetColorFrom3or4B(ubyte color)
+Color[16] color_array=[
+Color(0x00, 0x00, 0x00),
+Color(0x00, 0x00, 0xAA),
+Color(0x00, 0xAA, 0x00),
+Color(0x00, 0xAA, 0xAA),
+Color(0xAA, 0x00, 0x00),
+Color(0xAA, 0x00, 0xAA),
+Color(0xAA, 0x55, 0x00),
+Color(0xAA, 0xAA, 0xAA),
+Color(0x55, 0x55, 0x55),
+Color(0x55, 0x55, 0xFF),
+Color(0x55, 0xFF, 0x55),
+Color(0x55, 0xFF, 0xFF),
+Color(0xFF, 0x55, 0x55),
+Color(0xFF, 0x55, 0xFF),
+Color(0xFF, 0xFF, 0x55),
+Color(0xFF, 0xFF, 0xFF)
+];
+
+ref Color GetColorFrom3or4B(ubyte color)
 {
-	switch(color&0b1111)
-	{
-	case 0x0:
-		{
-			return Color(0x00, 0x00, 0x00);
-		}
-	case 0x1:
-		{
-			return Color(0x00, 0x00, 0xAA);
-		}
-	case 0x2:
-		{
-			return Color(0x00, 0xAA, 0x00);
-		}
-	case 0x3:
-		{
-			return Color(0x00, 0xAA, 0xAA);
-		}
-	case 0x4:
-		{
-			return Color(0xAA, 0x00, 0x00);
-		}
-	case 0x5:
-		{
-			return Color(0xAA, 0x00, 0xAA);
-		}
-	case 0x6:
-		{
-			return Color(0xAA, 0x55, 0x00);
-		}
-	case 0x7:
-		{
-			return Color(0xAA, 0xAA, 0xAA);
-		}
-	case 0x8:
-		{
-			return Color(0x55, 0x55, 0x55);
-		}
-	case 0x9:
-		{
-			return Color(0x55, 0x55, 0xFF);
-		}
-	case 0xA:
-		{
-			return Color(0x55, 0xFF, 0x55);
-		}
-	case 0xB:
-		{
-			return Color(0x55, 0xFF, 0xFF);
-		}
-	case 0xC:
-		{
-			return Color(0xFF, 0x55, 0x55);
-		}
-	case 0xD:
-		{
-			return Color(0xFF, 0x55, 0xFF);
-		}
-	case 0xE:
-		{
-			return Color(0xFF, 0xFF, 0x55);
-		}
-	case 0xF:
-		{
-			return Color(0xFF, 0xFF, 0xFF);
-		}
-	default:
-		{
-			return Color(0x0, 0x0, 0x0); // or exception?
-		}
-	}
+	return color_array[color&0b1111];
 }
 
-void DrawChar(Image drawscreen, ubyte character, uint w, uint h, Color background=Color(0, 0, 0), Color foreground=Color(255, 255, 255))
+void DrawChar(Image drawscreen, ubyte character, uint w, uint h, Color background, Color foreground)
 {
 	//https://wiki.osdev.org/VGA_Fonts
 	int cx,cy;
@@ -249,7 +198,7 @@ void DrawChar(Image drawscreen, ubyte character, uint w, uint h, Color backgroun
 	}
 }
 
-void DrawCursor(Image drawscreen, uint w, uint h, Color foreground=Color(255, 255, 255))
+void DrawCursor(Image drawscreen, uint w, uint h, Color foreground)
 {
 	//https://wiki.osdev.org/VGA_Fonts
 	int cx,cy;
