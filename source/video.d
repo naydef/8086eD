@@ -8,6 +8,9 @@ import x86_memory;
 import std.concurrency;
 import core.sync.mutex;
 import sfml_interfacing;
+import cpu.decl;
+
+
 
 class Video_Controller
 {
@@ -18,46 +21,14 @@ class Video_Controller
 		pc.AddINOUTHandler(0xE301, &VideoControlPortInput); // I/O address 0xE301 is the video base address register - 16-bit access!
 		pc.AddINOUTHandler(0x03DA, &VideoControlPortInput); // I/O address 0x03DA
 		pc.AddINOUTHandler(0xA3D8, &VideoControlPortInput); // I/O address - CGA mode control register
+		pc.AddINOUTHandler(0x03D9, &VideoControlPortInput); // I/O address - CGA mode colour register
 		pc.AddINOUTHandler(0x03D4, &VideoControlPortInput); // I/O address - index port
 		pc.AddINOUTHandler(0x03D5, &VideoControlPortInput); // I/O address - data port
 		pc.AddINOUTHandler(0x03B4, &VideoControlPortInput); // I/O address - index port
 		pc.AddINOUTHandler(0x03B5, &VideoControlPortInput); // I/O address - data port
 		pc.AddINOUTHandler(0x03BA, &VideoControlPortInput); // I/O address - CRT status register
 		register_2=0x0;
-		
-		//init=false;
 	}
-	
-	/*
-	void InitLibrary()
-	{
-		initscr();
-		if (has_colors()==false)
-		{
-			endwin();
-			writefln("WARNING! Your console does not support colors!");
-			x86log.logf("WARNING! Your console does not support colors!");
-			initscr();
-		}
-		else
-		{
-			start_color();
-		}
-		cbreak();
-		keypad(stdscr, true);
-		noecho();
-		nodelay(stdscr, true);
-		ncursesinit=true;
-	}
-	*/
-	
-	/*
-	void FreeLibrary()
-	{
-		endwin();
-		ncursesinit=false;
-	}
-	*/
 	
 	/* 
 	Register 1:
@@ -109,6 +80,14 @@ class Video_Controller
 				}
 				break;
 			}
+		case 0x03D9:
+			{
+				if(!infunc)
+				{
+					color_reg.data=value&0xFF;
+				}
+				break;
+			}
 		default:
 			{
 				x86log.logf("Unknown video port 0x%04X", port);
@@ -155,6 +134,7 @@ class Video_Controller
 				local_pos.part[0]=val&0xFF;
 				video_state.position_cursor.data=local_pos.data;
 				cursorpos.part[0]=val&0xFF;
+				video_state.color_reg.data=color_reg.data;
 				break;
 			}
 		default:
@@ -168,74 +148,20 @@ class Video_Controller
 	//We also "think" here
 	public void AcknowledgeInterrupts()
 	{
-		/*
-		if(!ncursesinit)
-		{
-			return;
-		}
-		if(!init)
-		{
-			init_pair(1, COLOR_BLACK, COLOR_WHITE);
-			init_pair(2, COLOR_WHITE, COLOR_BLACK);
-			init_pair(3, COLOR_BLACK, COLOR_BLACK);
-			init_pair(4, COLOR_WHITE, COLOR_WHITE);
-			init=true;
-		}
-		*/
 		video_state.vmode=memory.ReadMemory8(0x0040, 0x0049); // Hack: Read the video mode from 0040h:0049h
 		if(counter%2000==0)
 		{
 			video_mode=video_state.vmode;
 			if(video_mode==0x02 || video_mode==0x07)
 			{
-				//segment=0xb000;
 				video_state.baseRamAddress=0xb0000;
 				if(video_mode==2)
 				{
 					video_state.baseRamAddress=0xb8000;
-					//segment=0xb800;
 				}
 				video_state.width=720;
 				video_state.height=400;
 				video_state.textmode=true;
-				/*
-				for(uint h=0; h<25; h++)
-				{
-					int counter=0;
-					for(uint w=0; w<159; w++)
-					{	
-						ubyte charbyte=memory.ReadMemory8(segment, cast(ushort)(register_2+(h*160+w)));
-						ubyte colorbyte=memory.ReadMemory8(segment, cast(ushort)(register_2+(h*160+w)+1));
-						if(w%2==0 && w!=0)
-						{
-							counter++;
-						}
-						ushort number=2;
-						if(colorbyte==0x20)
-						{
-							number=2;
-						}
-						else if(colorbyte==0x00 || colorbyte==0x08 || colorbyte==0x80 || colorbyte==0x88)
-						{
-							number=3;
-						}
-						else if(colorbyte&0x07 && colorbyte&0x70)
-						{
-							number=4;
-						}
-						else if(colorbyte&0x07)
-						{
-							number=2;
-						}
-						else if(colorbyte&0x70)
-						{
-							number=1;
-						}
-						auto colorpair=COLOR_PAIR(number);
-						mvaddch(h, w-counter, (charbyte==0x00) ? 0x20|colorpair : charbyte|colorpair);
-					}
-				}
-				*/
 			}
 			else if(video_mode==0x03)
 			{
@@ -244,10 +170,13 @@ class Video_Controller
 				video_state.textmode=true;
 				video_state.baseRamAddress=0xb8000;
 			}
-			/*
-			move(cursorpos.data/80, cursorpos.data%80);
-			refresh();
-			*/
+			else if(video_mode==0x04)
+			{
+				video_state.width=320;
+				video_state.height=200;
+				video_state.textmode=false;
+				video_state.baseRamAddress=0xb8000;
+			}
 		}
 		
 		//Random stuff to make things work
@@ -264,15 +193,13 @@ class Video_Controller
 
 	private IBM_PC_COMPATIBLE pc;
 	private MemoryX86 memory;
-	//private ushort segment;
 	private ubyte register_1;
 	private ushort register_2;
 	private ubyte video_mode;
 	private ubyte video_retrace_reg;
 	private ubyte[ubyte] colormatching;
 	private ushort indextoaccess;
-	//private bool init;
 	private Pos cursorpos;
-	//private bool ncursesinit;
+	private cga_color_reg color_reg;
 	ulong counter;
 }

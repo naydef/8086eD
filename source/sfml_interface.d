@@ -6,6 +6,7 @@ import simplelogger;
 import vga_fonts;
 import std.datetime;
 import std.stdio;
+import cpu.decl;
 
 struct VideoState
 {
@@ -17,7 +18,8 @@ struct VideoState
 	bool videoactive;
 	bool active_cursor;
 	Pos position_cursor;
-	
+	uint properties;
+	cga_color_reg color_reg;
 };
 
 union Pos
@@ -96,6 +98,41 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 				}
 				break;
 			}
+		case 0x04:
+			{
+				uint counter1=0;
+				uint counter2=0;
+				for(uint h=0; h<video_state.height; h++)
+				{
+					for(uint w=0; w<video_state.width; w+=4)
+					{
+						ubyte colour=0;
+						if(h%2==0)
+						{
+							colour=RamPtr[video_state.baseRamAddress+counter1];
+							counter1++;
+						}
+						else
+						{
+							colour=RamPtr[video_state.baseRamAddress+counter2+0x2000];
+							counter2++;
+						}
+						//Unwinded loop
+						cga_color_reg temp;
+						temp.data=video_state.color_reg.data;
+						drawscreen.setPixel(w, h, (colour>>6&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour>>6&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
+						
+						drawscreen.setPixel(w+1, h, (colour>>4&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour>>4&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
+						
+						drawscreen.setPixel(w+2, h, (colour>>2&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour>>2&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
+						
+						drawscreen.setPixel(w+3, h, (colour&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
+						
+						
+					}
+				}
+				break;
+			}
 		case 0x7:
 			{
 				for(uint h=0; h<25; h++)
@@ -106,15 +143,15 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 						ubyte attribute=RamPtr[video_state.baseRamAddress+(h*160+w*2+1)];
 						if(attribute&0x70)
 						{
-							DrawChar(drawscreen, character, w, h, color_array[15], color_array[0]);
+							DrawChar(drawscreen, character, w, h, cga_color_array_text_mode[15], cga_color_array_text_mode[0]);
 						}
 						else if(!attribute)
 						{
-							DrawChar(drawscreen, character, w, h, color_array[0], color_array[0]);
+							DrawChar(drawscreen, character, w, h, cga_color_array_text_mode[0], cga_color_array_text_mode[0]);
 						}
 						else
 						{
-							DrawChar(drawscreen, character, w, h, color_array[0], color_array[7]);
+							DrawChar(drawscreen, character, w, h, cga_color_array_text_mode[0], cga_color_array_text_mode[7]);
 						}
 					}
 				}
@@ -123,6 +160,7 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 		default:
 			{
 				//To-do: What to do?
+				writefln("Unsupported video mode: %s", video_state.vmode);
 			}
 		}
 		if(video_state.textmode)
@@ -151,7 +189,30 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 	}
 }
 
-Color[16] color_array=[
+Color[][] cga_color_array_mode_4=[
+[	
+	Color(0x00, 0x00, 0x00), //Dummy
+	Color(0x00, 0xAA, 0x00),
+	Color(0xAA, 0x00, 0x00),
+	Color(0xAA, 0x55, 0x00),
+	Color(0x00, 0x00, 0x00), //Dummy
+	Color(0x00, 0xAA, 0xAA),
+	Color(0xFF, 0x55, 0x55),
+	Color(0xFF, 0xFF, 0x55),
+],
+[
+	Color(0x00, 0x00, 0x00), //Dummy
+	Color(0x00, 0xAA, 0xAA),
+	Color(0xAA, 0x00, 0xAA),
+	Color(0xAA, 0xAA, 0xAA),
+	Color(0x00, 0x00, 0x00), //Dummy
+	Color(0x55, 0xFF, 0xFF),
+	Color(0xFF, 0x55, 0xFF),
+	Color(0xFF, 0xFF, 0xFF),
+]
+];
+
+Color[16] cga_color_array_text_mode=[
 Color(0x00, 0x00, 0x00),
 Color(0x00, 0x00, 0xAA),
 Color(0x00, 0xAA, 0x00),
@@ -172,7 +233,7 @@ Color(0xFF, 0xFF, 0xFF)
 
 ref Color GetColorFrom3or4B(ubyte color)
 {
-	return color_array[color&0b1111];
+	return cga_color_array_text_mode[color&0b1111];
 }
 
 void DrawChar(Image drawscreen, ubyte character, uint w, uint h, Color background, Color foreground)

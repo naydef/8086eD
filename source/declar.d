@@ -94,6 +94,16 @@ union FLAGSreg16
 	bool, "", 1));
 };
 
+union cga_color_reg
+{
+	ubyte data;
+	mixin(bitfields!(
+	ubyte, "backgroundColour", 4,
+	bool, "brightForeground", 1,
+	bool, "paletteSet", 1,
+	uint, "", 2));
+};
+
 immutable bool[0x100] parity = [
 true, false, false, true, false, true, true, false,
 false, true, true, false, true, false, false, true,
