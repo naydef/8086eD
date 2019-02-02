@@ -5729,7 +5729,6 @@ class ProcessorX86
 		{
 			FLAGS.CF=false;
 		}
-		//if(((result^num1)&(result^num2)&0x80))
 		if(((result^num1)&(num1^num2)&0x80))
 		{
 			FLAGS.OF=true;
@@ -5759,7 +5758,6 @@ class ProcessorX86
 		{
 			FLAGS.CF=false;
 		}
-		//if(((result^num1)&(result^num2)&0x8000))
 		if(((result^num1)&(num1^num2)&0x8000))
 		{
 			FLAGS.OF=true;

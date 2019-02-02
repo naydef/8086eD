@@ -77,7 +77,6 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 			continue;
 		}
 		
-		
 		switch(video_state.vmode)
 		{
 		case 0x0:
@@ -99,6 +98,7 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 				break;
 			}
 		case 0x04:
+		case 0x05:
 			{
 				uint counter1=0;
 				uint counter2=0;
@@ -128,6 +128,48 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 						
 						drawscreen.setPixel(w+3, h, (colour&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
 						
+						
+					}
+				}
+				break;
+			}
+		case 0x06:
+			{
+				uint counter1=0;
+				uint counter2=0;
+				for(uint h=0; h<video_state.height; h++)
+				{
+					for(uint w=0; w<video_state.width; w+=8)
+					{
+						ubyte colour=0;
+						if(h%2==0)
+						{
+							colour=RamPtr[video_state.baseRamAddress+counter1];
+							counter1++;
+						}
+						else
+						{
+							colour=RamPtr[video_state.baseRamAddress+counter2+0x2000];
+							counter2++;
+						}
+						//Unwinded loop
+						cga_color_reg temp;
+						temp.data=video_state.color_reg.data;
+						drawscreen.setPixel(w, h, (colour>>7&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
+						
+						drawscreen.setPixel(w+1, h, (colour>>6&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
+						
+						drawscreen.setPixel(w+2, h, (colour>>5&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
+						
+						drawscreen.setPixel(w+3, h, (colour>>4&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
+						
+						drawscreen.setPixel(w+4, h, (colour>>3&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
+						
+						drawscreen.setPixel(w+5, h, (colour>>2&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
+						
+						drawscreen.setPixel(w+6, h, (colour>>1&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
+						
+						drawscreen.setPixel(w+7, h, (colour&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
 						
 					}
 				}

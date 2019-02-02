@@ -170,9 +170,16 @@ class Video_Controller
 				video_state.textmode=true;
 				video_state.baseRamAddress=0xb8000;
 			}
-			else if(video_mode==0x04)
+			else if(video_mode==0x04 || video_mode==0x05)
 			{
 				video_state.width=320;
+				video_state.height=200;
+				video_state.textmode=false;
+				video_state.baseRamAddress=0xb8000;
+			}
+			else if(video_mode==0x06)
+			{
+				video_state.width=640;
 				video_state.height=200;
 				video_state.textmode=false;
 				video_state.baseRamAddress=0xb8000;
