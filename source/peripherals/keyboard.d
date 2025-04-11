@@ -2,7 +2,6 @@ module XT_Keyboard;
 
 import ibm_pc_com;
 import std.stdio;
-//import pdcurses;
 import simplelogger;
 import x86_memory;
 import IBM_PIC;
@@ -11,8 +10,7 @@ import std.concurrency;
 import core.thread;
 import core.sync.mutex;
 import sfml_interface;
-import dsfml.graphics;
-import video_controller;
+import peripherals.video;
 
 
 class XT_Keyboard
@@ -101,6 +99,7 @@ class XT_Keyboard
 
 	ubyte NCursesToScanCode(int ch)
 	{
+		/+
 		switch(ch)
 		{
 		case Keyboard.Key.Escape:
@@ -485,6 +484,8 @@ class XT_Keyboard
 				return 0xFF;
 			}
 		}
+		+/
+		return 0xFF;
 	}
 
 	private IBM_PC_COMPATIBLE pc;

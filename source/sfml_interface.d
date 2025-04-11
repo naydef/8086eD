@@ -1,12 +1,13 @@
 module sfml_interface;
 
 import core.thread;
-import dsfml.graphics;
 import simplelogger;
-import vga_fonts;
+import vgafonts;
 import std.datetime;
 import std.stdio;
 import cpu.decl;
+import arsd.color;
+import arsd.minigui;
 
 struct VideoState
 {
@@ -30,8 +31,9 @@ union Pos
 
 shared(VideoState) video_state;
 
-void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, shared)
+void Render_Keyboard_Thread(shared(int)* keypresstopass, shared(ubyte*) RamPtr)
 {
+	/*
 	auto view_window=new RenderWindow(VideoMode(640, 480), "Graphics - 8086eD");
 	static ushort currwidth=640;
 	static ushort currheight=480;
@@ -229,6 +231,7 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 		view_window.display();
 		core.thread.Thread.sleep(dur!("msecs")(15));
 	}
+	*/
 }
 
 Color[][] cga_color_array_mode_4=[
@@ -278,6 +281,7 @@ ref Color GetColorFrom3or4B(ubyte color)
 	return cga_color_array_text_mode[color&0b1111];
 }
 
+/*
 void DrawChar(Image drawscreen, ubyte character, uint w, uint h, Color background, Color foreground)
 {
 	//https://wiki.osdev.org/VGA_Fonts
@@ -315,3 +319,4 @@ void DrawCursor(Image drawscreen, uint w, uint h, Color foreground)
 		}
 	}
 }
+*/

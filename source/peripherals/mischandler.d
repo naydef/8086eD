@@ -3,8 +3,8 @@ module x86_diskhandler;
 import ibm_pc_com;
 import std.stdio;
 import simplelogger;
-import x86_memory;
-import x86_processor;
+import memory.x86.memory;
+import cpu.x86.processor;
 import cpu.decl;
 import core.stdc.string;
 import std.exception;
@@ -20,7 +20,7 @@ class Misc_Handler
 		memory=pc.GetCPU().ExposeRam();
 		pc.GetCPU().SetVMHandler(&VmInvokeHandler);
 	}
-	
+
 	void VmInvokeHandler(ProcessorX86 CPU)
 	{
 		x86log.logf("int13h with ah=0x%02X", CPU.AX.hfword[h]);
@@ -66,7 +66,7 @@ class Misc_Handler
 					ubyte head=CPU.DX.hfword[h];
 					ubyte beginsector=CPU.CX.hfword[l];
 					ubyte cyclinder=CPU.CX.hfword[h];
-					
+
 					ulong LBA=0;
 					if(floppyimage.size()==1474560)
 					{
@@ -83,7 +83,7 @@ class Misc_Handler
 					else if(floppyimage.size()==368640)
 					{
 						LBA=(cyclinder*2+head)*9+(beginsector-1);
-					
+
 					}
 					else if(floppyimage.size()==163840)
 					{
@@ -113,7 +113,7 @@ class Misc_Handler
 						return;
 					}
 					ubyte[] data=new ubyte[sectors_count*512];
-					
+
 					//To-do: This throws exceptions way too often - Probably file is not allowed to be read?
 					try
 					{
@@ -161,13 +161,13 @@ class Misc_Handler
 			}
 		}
 	}
-	
+
 	void SetFloppyDriveImage(string str)
 	{
 		floppyimage=File(str, "r+b");
 		floppyfile=str;
 	}
-	
+
 	void SetHardDriveImage(string str)
 	{
 		harddiskimage=File(str, "r+b");
@@ -179,7 +179,7 @@ class Misc_Handler
 	private string diskfile;
 	private string floppyfile;
 	private ubyte status;
-	
+
 	File floppyimage;
 	File harddiskimage;
 }

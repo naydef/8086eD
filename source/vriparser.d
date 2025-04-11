@@ -1,6 +1,6 @@
 module vriparser;
 
-import std.stdio; 
+import std.stdio;
 import core.stdc.stdint;
 import std.file;
 import std.conv;
@@ -84,12 +84,12 @@ class VRI_FILE
 			errno=4;
 			return;
 		}
-		
+
 		auto entry=new VRI_Entry[(header[0].mdtsize)/16];
-		
+
 		filehndl.seek(header[0].mdtabsoffset);
 		filehndl.rawRead(entry);
-		
+
 		memcpy(cast(void*)addinfo, cast(void*)header[0].additionalinfo, 256);
 		foreach(i;0 .. header[0].mdtsize/16)
 		{
@@ -113,27 +113,27 @@ class VRI_FILE
 			entries.insertBack(container);
 		}
 	}
-	
+
 	ushort Errno()
 	{
 		return errno;
 	}
-	
-	uint GetNumberOfRegions()
+
+	size_t GetNumberOfRegions()
 	{
 		return entries.length;
 	}
-	
+
 	ref VRI_Container GetRegion(uint index)
 	{
 		return entries[index];
 	}
-	
+
 	ubyte[256] GetAddInfo()
 	{
 		return addinfo;
 	}
-	
+
 	~this()
 	{
 		foreach(ref i; entries)
@@ -141,7 +141,7 @@ class VRI_FILE
 			GC.free(cast(void*)i);
 		}
 	}
-	
+
 	private File filehndl;
 	private Array!VRI_Container entries;
 	private ushort errno;

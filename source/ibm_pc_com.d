@@ -14,10 +14,10 @@ import core.sync.mutex;
 import std.array;
 import core.thread;
 import std.conv;
-import IBM_PIT;
-import x86_diskhandler;
+import peripherals.PIT;
+import peripherals.mischandler;
 import std.file;
-import sfml_interfacing;
+import sfml_interface;
 
 immutable string rom_image="romimage.bin";
 
