@@ -10,7 +10,7 @@ import std.format;
 import std.concurrency;
 import core.thread;
 import core.sync.mutex;
-import sfml_interfacing;
+import sfml_interface;
 import dsfml.graphics;
 import video_controller;
 
@@ -27,7 +27,7 @@ class XT_Keyboard
 		intr_controller=param2;
 		spawn(&Render_Keyboard_Thread, &keypress, cast(shared(ubyte*))memory.GetRamPointer());
 	}
-	
+
 
 	public void PortIO(ushort port, ref ushort value, bool infunc)
 	{
@@ -83,7 +83,7 @@ class XT_Keyboard
 			}
 		}
 	}
-	
+
 	void AcknowledgeInterrupts()
 	{
 		if(keypress!=-1)
@@ -98,7 +98,7 @@ class XT_Keyboard
 			}
 		}
 	}
-	
+
 	ubyte NCursesToScanCode(int ch)
 	{
 		switch(ch)
@@ -491,7 +491,7 @@ class XT_Keyboard
 	private MemoryX86 memory;
 	private PIC intr_controller;
 	private bool shiftFlip;
-	
+
 	private ubyte port61reg;
 	private ubyte scancode;
 	private ubyte status;

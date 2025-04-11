@@ -1,15 +1,15 @@
 module ibm_pc_com;
 
-import x86_processor;
+import cpu.x86.processor;
 import vriparser;
 import std.stdio;
 import std.experimental.logger;
 import simplelogger;
-import video_controller;
-import IBM_PIC;
+import peripherals.video;
+import peripherals.PIC;
 //import pdcurses;
-import x86_ports;
-import XT_Keyboard;
+import peripherals.ports;
+import peripherals.keyboard;
 import core.sync.mutex;
 import std.array;
 import core.thread;
@@ -35,7 +35,7 @@ class IBM_PC_COMPATIBLE
 		misc=new Misc_Handler(this);
 		proc.SetInOutFunc(&INOUTFunc);
 		AddINOUTHandler(0x0080, &port80hout);
-		
+
 		ramlayoutfile=new VRI_FILE(rom_image);
 		if(ramlayoutfile.Errno()!=LOAD_VRI_SUCCESS)
 		{
@@ -53,12 +53,12 @@ class IBM_PC_COMPATIBLE
 		isvalidromimage=true;
 		//VideoModeText();
 	}
-	
+
 	ref GetCPU()
 	{
 		return proc;
 	}
-	
+
 	void AcknowledgeInterrupts() //Here we will send interrupts to the CPU
 	{
 		video.AcknowledgeInterrupts();
@@ -66,7 +66,7 @@ class IBM_PC_COMPATIBLE
 		pit.AcknowledgeInterrupts();
 		interrupt_controller.AcknowledgeInterrupts();
 	}
-	
+
 	public void AddINOUTHandler(ushort port, void delegate(ushort, ref ushort, bool) func)
 	{
 		if(func !is null)
@@ -74,23 +74,23 @@ class IBM_PC_COMPATIBLE
 			inoutfunclist[port]=func;
 		}
 	}
-	
+
 	public void port80hout(ushort port, ref ushort value, bool infunc)
 	{
 		if(!infunc) x86log.logf("Port 80h out: %04X", value);
 	}
-	
+
 	public void OnStartVM()
 	{
 		//video.InitLibrary();
 		video_state.videoactive=true;
 	}
-	
+
 	public bool ValidRomImage()
 	{
 		return isvalidromimage;
 	}
-	
+
 	private void INOUTFunc(ushort port, ref ushort value, bool infunc)
 	{
 		auto func=(port in inoutfunclist);
@@ -119,19 +119,19 @@ class IBM_PC_COMPATIBLE
 	{
 		return ramlayoutfile;
 	}
-	
+
 	/*
 	void VideoModeText()
 	{
 		video.InitLibrary();
 	}
 	*/
-	
+
 	ref PIC GetPIC()
 	{
 		return interrupt_controller;
 	}
-	
+
 	//true-execution | false-stop execution
 	bool CommandWindow(string sig="") //Also debug window
 	{
@@ -161,7 +161,7 @@ class IBM_PC_COMPATIBLE
 			{
 				continue;
 			}
-			
+
 			if(command[0] == "start")
 			{
 				/*
@@ -295,7 +295,7 @@ Bitfield: 0x%08X", i, memlayoutregion.ramdata.length, memlayoutregion.base, meml
 					{
 						writefln("Incorrect register...");
 					}
-					
+
 				}
 				else
 				{
@@ -366,12 +366,12 @@ Bitfield: 0x%08X", i, memlayoutregion.ramdata.length, memlayoutregion.base, meml
 
 		}
 	}
-	
+
 	public void LoadFloppy(string str)
 	{
 		misc.SetFloppyDriveImage(str);
 	}
-	
+
 	void ProcedureFunc()
 	{
 		while(1)
@@ -388,30 +388,30 @@ Bitfield: 0x%08X", i, memlayoutregion.ramdata.length, memlayoutregion.base, meml
 				this.AcknowledgeInterrupts();
 				Thread.sleep(dur!("nsecs")(100));
 			}
-			
+
 			if(singlesteponint1 && this.GetCPU().ExposeRam().ReadMemory8(prevCS, cast(ushort)(prevIP))==0xF1)
 			{
 				singlestep=true;
 				singlesteponint1=false;
 			}
-			
+
 			if(singlestep)
 			{
 				CommandWindow("singlestepping");
 			}
 		}
 	}
-	
+
 	public Video_Controller GetVideo()
 	{
 		return video;
 	}
-	
+
 	public bool noExternIntFunc()
 	{
 		return noExternInt;
 	}
-	
+
 	private ProcessorX86 proc;
 	private Video_Controller video;
 	private PIC interrupt_controller;

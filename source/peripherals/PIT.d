@@ -3,10 +3,10 @@ module IBM_PIT;
 import ibm_pc_com;
 import std.stdio;
 import simplelogger;
-import x86_memory;
+import memory.x86.memory;
 import IBM_PIC;
 import std.datetime;
-import x86_processor;
+import cpu.x86.processor;
 
 
 //the 8253 PIT Emulation module
@@ -20,7 +20,7 @@ class PIT
 		currtick=lasttick=MonoTime.currTime().ticks();
 		pittick=MonoTime.ticksPerSecond()/18;
 	}
-	
+
 	void AcknowledgeInterrupts()
 	{
 		if(MonoTime.currTime().ticks()>=lasttick+pittick)

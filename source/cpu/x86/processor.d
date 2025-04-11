@@ -1,6 +1,6 @@
-module x86_processor;
+module processor;
 
-import x86_memory;
+import memory.x86.memory;
 import core.stdc.stdint;
 import core.stdc.string;
 import std.stdio;
@@ -10,7 +10,7 @@ import std.bitmanip;
 import core.bitop;
 import std.conv;
 import std.format;
-import cpu.decl;
+import cpu.x86.decl;
 import ibm_pc_com;
 import std.string;
 
@@ -31,27 +31,27 @@ class ProcessorX86
 		x86log.log("Initializing CPU");
 		// Memory is exclusively a CPU resource - external access via DMA
 		RAM=new MemoryX86();
-		
+
 		SignalReset();
 		//Everything initialised!
 	}
-	
-	
+
+
 	private uint8_t RMF(uint8_t arg)
 	{
 		return arg & 0x07;
 	}
-	
+
 	private uint8_t REG(uint8_t arg)
 	{
 		return arg>>3 & 0x07;
 	}
-	
+
 	private uint8_t MOD(uint8_t arg)
 	{
 		return arg>>6 & 0x03;
 	}
-	
+
 	private uint8_t DIREC(uint8_t arg)
 	{
 		return arg>>1 & 0x01;
@@ -61,29 +61,29 @@ class ProcessorX86
 	{
 		return ((arg>>0 & 0x01) == 1);
 	}
-	
+
 	private bool GETBITFLAGS(uint8_t bit)
 	{
 		return FLAGS.word >> bit & 0x01;
 	}
-	
+
 	private bool IsSignSet(uint8_t num)
 	{
 		return ((num>>7 & 0x01)==1);
 	}
-	
+
 	private bool IsSignSet(uint16_t num)
 	{
 		return ((num>>15 & 0x01)==1);
 	}
-	
+
 	private uint16_t SignExtendB(uint8_t num)
 	{
 		uint16_t number=num;
 		number|=(number&0x80) ? 0xFF00 : 0x0000;
 		return number;
 	}
-	
+
 	//To-do: Make compliant with D integer promotion changes
 	/*
 	private void SETBITFLAGS(uint8_t bit, bool val)
@@ -91,12 +91,12 @@ class ProcessorX86
 		FLAGS.word ^= (-cast(byte)val ^ FLAGS.word) & (1UL << bit);
 	}
 	*/
-	
+
 	public bool Halted()
 	{
 		return halted;
 	}
-	
+
 	final private void AdjustIP(ref reg16 IP, uint8_t modrm)
 	{
 		switch(MOD(modrm))
@@ -139,7 +139,7 @@ class ProcessorX86
 			}
 		}
 	}
-	
+
 	final private ref reg16 SegIndexToSegReg(uint8_t index)
 	{
 		switch(index)
@@ -148,29 +148,29 @@ class ProcessorX86
 			{
 				return CS;
 			}
-			
+
 		case DS_SEGMENT:
 			{
 				return DS;
 			}
-			
+
 		case SS_SEGMENT:
 			{
 				return SS;
 			}
-			
+
 		case ES_SEGMENT:
 			{
 				return ES;
 			}
-			
+
 		default: // By default refer to DS register
 			{
 				return DS;
 			}
 		}
 	}
-	
+
 	final string RegWordIndexToString(int reg)
 	{
 		switch(reg)
@@ -213,13 +213,13 @@ class ProcessorX86
 			}
 		}
 	}
-	
+
 	final private void push16(uint16_t val)
 	{
 		regs[REG_SP].word-=2;
 		RAM.WriteMemory(SS.word, regs[REG_SP].word, val);
 	}
-	
+
 	final private void push8(uint8_t val)
 	{
 		regs[REG_SP].word-=2;
@@ -232,13 +232,13 @@ class ProcessorX86
 		regs[REG_SP].word+=2;
 		return data;
 	}
-	
+
 	final private void TestCF(uint8_t byte1,uint8_t byte2)
 	{
 		FLAGS.CF=(cast(uint16_t)byte1+cast(uint16_t)byte2)&0x8000 ? true : false;
 	}
-	
-	
+
+
 	//Special one for asm: lea
 	final private uint16_t Lea16(uint8_t modrm, uint16_t bytes2afterinstruction)
 	{
@@ -308,7 +308,7 @@ class ProcessorX86
 		}
 		assert(0, "This code can't be reached, but somehow this did happen!");
 	}
-	
+
 	void AdjustSegment(ubyte modrm, ref ubyte currsegment)
 	{
 		switch(MOD(modrm))
@@ -373,7 +373,7 @@ class ProcessorX86
 		}
 		assert(0, "This code can't be reached, but somehow this did happen!");
 	}
-	
+
 	//Note: oper1 is ALWAYS the DESTINATION, oper2 is ALWAYS the SOURCE! Pass address of the pointers!
 	final private void SetupOperands(uint8_t modrm, uint8_t opcode, uint16_t bytes2afterinstruction, void** oper1, void** oper2, uint8_t seg=DS_SEGMENT)
 	{
@@ -544,7 +544,7 @@ class ProcessorX86
 					{
 						*oper1=&regs[REG(modrm)];
 						*oper2=&regs[RMF(modrm)];
-					} 
+					}
 				}
 				break;
 			}
@@ -557,7 +557,7 @@ class ProcessorX86
 			}
 		}
 	}
-	
+
 	final public void ExecuteInstruction()
 	{
 		uint8_t prefix=CodeFetchB(0);
@@ -578,48 +578,48 @@ class ProcessorX86
 					currsegment=ES_SEGMENT;
 					break;
 				}
-				
+
 				//asm: SS:
 			case 0x36:
 				{
 					currsegment=SS_SEGMENT;
 					break;
 				}
-				
+
 				//asm: CS:
 			case 0x2E:
 				{
 					currsegment=CS_SEGMENT;
 					break;
 				}
-				
+
 				//asm: DS:
 			case 0x3E:
 				{
 					currsegment=DS_SEGMENT;
 					break;
 				}
-				
+
 				//asm: LOCK:
 			case 0xF0:
 				{
 					break;
 				}
-				
+
 				//asm: REPNE:
 			case 0xF2:
 				{
 					rep=REP_PREFIX_REPN;
 					break;
 				}
-				
+
 				//asm: REP/REPE:
 			case 0xF3:
 				{
 					rep=REP_PREFIX_REP;
 					break;
 				}
-				
+
 			default:
 				{
 					currsegment=NO_SEGMENT;
@@ -630,7 +630,7 @@ class ProcessorX86
 
 		uint8_t opcode=CodeFetchB(0);
 		uint8_t modrm=CodeFetchB(1);
-		
+
 		if(isexecbreakpointactive)
 		{
 			if(CS.word==BP_CS && IP.word==BP_IP)
@@ -639,7 +639,7 @@ class ProcessorX86
 				isexecbreakpointactive=false;
 			}
 		}
-		
+
 		INSTR_NAME("<unknown>");
 		switch(opcode)
 		{
@@ -649,214 +649,214 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("add r/m8, r8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				CheckAdd8(*dest, *source);
 				*dest+=*source;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: add <w>
 		case 0x01:
 		case 0x03:
 			{
 				//Instruction name
 				INSTR_NAME("add r/m16, r16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				CheckAdd16(*dest, *source);
 				*dest+=*source;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: add al, imm8
 		case 0x04:
 			{
 				//Instruction name
 				uint8_t imm8=CodeFetchB(1);
 				INSTR_NAME("add al, imm8");
-				
+
 				//The actual operation
 				CheckAdd8(regs[REG_AX].hfword[l], imm8);
 				regs[REG_AX].hfword[l]+=imm8;
-				
+
 				//Set flags accordingly
 				TestVal(regs[REG_AX].hfword[l]);
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: add ax, imm16
 		case 0x05:
 			{
 				//Instruction name
 				INSTR_NAME("add ax, imm16");
-				
+
 				uint16_t imm16=CodeFetchW(1);
-				
+
 				//The actual operation
 				CheckAdd16(regs[REG_AX].word, imm16);
 				regs[REG_AX].word+=imm16;
-				
+
 				//Set flags accordingly
 				TestVal(regs[REG_AX].word);
-				
+
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: push es
 		case 0x06:
 			{
 				//Instruction name
 				INSTR_NAME("push es");
-				
+
 				//The actual operation
 				push16(ES.word);
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: pop es
 		case 0x07:
 			{
 				//Instruction name
 				INSTR_NAME("pop es");
-				
+
 				//The actual operation
 				ES.word=pop16();
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: or <b>
 		case 0x08:
 		case 0x0A:
 			{
 				//Instruction name
 				INSTR_NAME("or r8, r/m8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				*dest|=*source;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
 				FLAGS.OF=false;
 				FLAGS.CF=false;
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: or <w>
 		case 0x09:
 		case 0x0B:
 			{
 				//Instruction name
 				INSTR_NAME("or r16, r/m16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				*dest|=*source;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
 				FLAGS.OF=false;
 				FLAGS.CF=false;
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: or al, imm8
 		case 0x0C:
 			{
 				//Instruction name
 				INSTR_NAME("or al, imm8");
-				
+
 				uint8_t imm8=CodeFetchB(1);
 				regs[REG_AX].hfword[l]|=imm8;
-				
+
 				//Set flags accordingly
 				TestVal(regs[REG_AX].hfword[l]);
 				FLAGS.OF=false;
 				FLAGS.CF=false;
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: or ax, imm16
 		case 0x0D:
 			{
 				//Instruction name
 				INSTR_NAME("or ax, imm16");
-				
+
 				uint16_t imm16=CodeFetchW(1);
 				regs[REG_AX].word|=imm16;
-				
+
 				//Set flags accordingly
 				TestVal(regs[REG_AX].word);
 				FLAGS.OF=false;
 				FLAGS.CF=false;
-				
+
 				IP.word+=3; // Probably. Better check!
 				break;
 			}
-			
+
 			//asm: push cs
 		case 0x0E:
 			{
 				//Instruction name
 				INSTR_NAME("push cs");
-				
+
 				push16(CS.word);
 				IP.word+=1;
 				break;
 			}
-			
+
 			version(PROC_8086)
 			{
 				//asm: pop cs
@@ -864,107 +864,107 @@ class ProcessorX86
 				{
 					//Instruction name
 					INSTR_NAME("pop cs");
-					
+
 					CS.word=pop16();
 					IP.word+=1;
 					break;
 				}
 			}
-			
+
 			//asm: adc <b>
 		case 0x10:
 		case 0x12:
 			{
 				//Instruction name
 				INSTR_NAME("adc r8, r/m8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				bool tempCF=FLAGS.CF;
 				CheckAdd8(*dest, *source, FLAGS.CF);
 				*dest+=*source+tempCF;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: adc <w>
 		case 0x11:
 		case 0x13:
 			{
 				//Instruction name
 				INSTR_NAME("adc r16, r/m16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				bool tempCF=FLAGS.CF;
 				CheckAdd16(*dest, *source, FLAGS.CF);
 				*dest+=*source+tempCF;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: adc al, imm8
 		case 0x14:
 			{
 				//Instruction name
 				INSTR_NAME("adc al, imm8");
-				
+
 				uint8_t imm8=CodeFetchB(1);
-				
+
 				bool tempCF=FLAGS.CF;
 				CheckAdd8(regs[REG_AX].hfword[l], imm8, FLAGS.CF);
 				regs[REG_AX].hfword[l]+=imm8+tempCF;
-				
+
 				TestVal(regs[REG_AX].hfword[l]);
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: adc ax, imm16
 		case 0x15:
 			{
 				//Instruction name
 				INSTR_NAME("adc ax, imm16");
-				
+
 				uint16_t imm16=CodeFetchW(1);
-				
+
 				bool tempCF=FLAGS.CF;
 				CheckAdd16(regs[REG_AX].word, imm16, FLAGS.CF);
 				regs[REG_AX].word+=imm16+tempCF;
-				
+
 				TestVal(regs[REG_AX].word);
-				
+
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: push ss
 		case 0x16:
 			{
 				//Instruction name
 				INSTR_NAME("push ss");
-				
+
 				push16(SS.word);
 				IP.word+=1;
 				break;
@@ -975,32 +975,32 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("pop ss");
-				
+
 				SS.word=pop16();
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: sbb <b>
 		case 0x18:
 		case 0x1A:
 			{
 				//Instruction name
 				INSTR_NAME("sbb r8, r/m8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				bool tempCF=FLAGS.CF;
 				CheckSub8(*dest, *source, FLAGS.CF);
 				*dest-=*source+tempCF;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
@@ -1012,91 +1012,91 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("sbb r16, r/m16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				bool tempCF=FLAGS.CF;
 				CheckSub16(*dest, *source, FLAGS.CF);
 				*dest-=*source+tempCF;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: sbb al, imm8
 		case 0x1C:
 			{
 				//Instruction name
 				INSTR_NAME("sbb al, imm8");
-				
+
 				uint8_t imm8=CodeFetchB(1);
-				
+
 				bool tempCF=FLAGS.CF;
 				CheckSub8(regs[REG_AX].hfword[l], imm8, FLAGS.CF);
 				regs[REG_AX].hfword[l]-=imm8+tempCF;
-				
+
 				TestVal(regs[REG_AX].hfword[l]);
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: sbb ax, imm16
 		case 0x1D:
 			{
 				//Instruction name
 				INSTR_NAME("sbb ax, imm16");
-				
+
 				uint16_t imm16=CodeFetchW(1);
-				
+
 				bool tempCF=FLAGS.CF;
 				CheckSub16(regs[REG_AX].word, imm16, FLAGS.CF);
 				regs[REG_AX].word-=imm16+tempCF;
-				
+
 				TestVal(regs[REG_AX].word);
-				
+
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: push ds
 		case 0x1E:
 			{
 				//Instruction name
 				INSTR_NAME("push ds");
-				
+
 				push16(DS.word);
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: pop ds
 		case 0x1F:
 			{
 				//Instruction name
 				INSTR_NAME("pop ds");
-				
+
 				DS.word=pop16();
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: and <b>
 		case 0x20:
 		case 0x22:
 			{
 				//Instruction name
 				INSTR_NAME("and r8, r/m8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
@@ -1115,14 +1115,14 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: and <w>
 		case 0x21:
 		case 0x23:
 			{
 				//Instruction name
 				INSTR_NAME("and r16, r/m16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
@@ -1141,50 +1141,50 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: and al, imm8
 		case 0x24:
 			{
 				//Instruction name
 				INSTR_NAME("and al, imm8");
-				
+
 				uint8_t imm8=CodeFetchB(1);
 				regs[REG_AX].hfword[l]&=imm8;
-				
+
 				TestVal(regs[REG_AX].hfword[l]);
 				FLAGS.OF=false;
 				FLAGS.CF=false;
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: and ax, imm16
 		case 0x25:
 			{
 				//Instruction name
 				INSTR_NAME("and ax, imm16");
-				
+
 				uint16_t imm16=CodeFetchW(1);
 				regs[REG_AX].word&=imm16;
-				
+
 				TestVal(regs[REG_AX].word);
 				FLAGS.OF=false;
 				FLAGS.CF=false;
-				
+
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: ES:
-			//case 0x26:	
-			
+			//case 0x26:
+
 			//asm: daa
 		case 0x27:
 			{
 				//Instruction name
 				INSTR_NAME("daa");
-				
+
 				ubyte oldal=regs[REG_AX].hfword[l];
 				bool oldCF=FLAGS.CF;
 				FLAGS.CF=false;
@@ -1215,39 +1215,39 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: sub <b>
 		case 0x28:
 		case 0x2A:
 			{
 				//Instruction name
 				INSTR_NAME("sub r8, r/m8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				CheckSub8(*dest, *source);
 				*dest-=*source;
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: sub <w>
 		case 0x29:
 		case 0x2B:
 			{
 				//Instruction name
 				INSTR_NAME("sub r16, r/m16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
@@ -1265,63 +1265,63 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: sub al, imm8
 		case 0x2C:
 			{
 				//Instruction name
 				INSTR_NAME("sub al, imm8");
-				
+
 				uint8_t imm8=CodeFetchB(1);
-				
+
 				CheckSub8(regs[REG_AX].hfword[l], imm8);
 				regs[REG_AX].hfword[l]-=imm8;
-				
+
 				TestVal(regs[REG_AX].hfword[l]);
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: sub ax, imm16
 		case 0x2D:
 			{
 				//Instruction name
 				INSTR_NAME("sub ax, imm16");
-				
+
 				uint16_t imm16=CodeFetchW(1);
-				
+
 				CheckSub16(regs[REG_AX].word, imm16);
 				regs[REG_AX].word-=imm16;
-				
+
 				TestVal(regs[REG_AX].word);
-				
+
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: CS:
 			//case 0x2E:
-			
+
 			//asm: das
 		case 0x2F:
 			{
 				//Instruction name
 				INSTR_NAME("das");
-				
+
 				uint8_t oldAL=regs[REG_AX].hfword[l];
 				bool oldCF=FLAGS.CF;
-				
+
 				FLAGS.CF=false;
-				
+
 				if((oldAL & 0xF) > 9 || FLAGS.AF)
 				{
 					ushort result=cast(ushort)(regs[REG_AX].hfword[l]-6);
 					bool borrow=(result&0xFF00) ? true : false;
-					
+
 					FLAGS.CF=borrow;
 					regs[REG_AX].hfword[l]-=6;
-					
+
 
 					x86log.log("DAS instruction executed with incomplete implementation!");
 				}
@@ -1329,7 +1329,7 @@ class ProcessorX86
 				{
 					FLAGS.AF=false;
 				}
-				
+
 				if(oldAL > 0x99 || oldCF)
 				{
 					regs[REG_AX].hfword[l]-=0x60;
@@ -1339,18 +1339,18 @@ class ProcessorX86
 				{
 					FLAGS.CF=false;
 				}
-				
+
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: xor <b>
 		case 0x30:
 		case 0x32:
 			{
 				//Instruction name
 				INSTR_NAME("xor r8, r/m8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
@@ -1376,7 +1376,7 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("xor r16, r/m16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
@@ -1395,13 +1395,13 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: xor al, lb
 		case 0x34:
 			{
 				//Instruction name
 				INSTR_NAME("xor al, imm8");
-				
+
 				regs[REG_AX].hfword[l]^=CodeFetchB(1);
 				TestVal(regs[REG_AX].hfword[l]);
 				FLAGS.CF=false;
@@ -1409,13 +1409,13 @@ class ProcessorX86
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: xor ax, lv
 		case 0x35:
 			{
 				//Instruction name
 				INSTR_NAME("xor ax, imm16");
-				
+
 				regs[REG_AX].word^=CodeFetchW(1);
 				TestVal(regs[REG_AX].word);
 				FLAGS.CF=false;
@@ -1423,16 +1423,16 @@ class ProcessorX86
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: SS:
 			//case 0x36:
-			
+
 			//asm: aaa
 		case 0x37:
 			{
 				//Instruction name
 				INSTR_NAME("aaa");
-				
+
 				if((regs[REG_AX].hfword[l] & 0xF)>9 || FLAGS.AF)
 				{
 					regs[REG_AX].hfword[l]+=6;
@@ -1449,19 +1449,19 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: cmp <b>
 		case 0x38:
 		case 0x3A:
 			{
 				//Instruction name
 				INSTR_NAME("cmp r8, r/m8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//Set flags accordingly
 				TestVal(cast(uint8_t)(*dest-*source));
 				CheckSub8(*dest, *source);
@@ -1478,7 +1478,7 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("cmp r16, r/m16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
@@ -1493,46 +1493,46 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: cmp al, imm8
 		case 0x3C:
 			{
 				//Instruction name
 				INSTR_NAME("cmp al, imm8");
-				
+
 				uint8_t imm8=CodeFetchB(1);
 				uint8_t temp=cast(uint8_t)(regs[REG_AX].hfword[l]-imm8);
-				
+
 				TestVal(temp);
 				CheckSub8(regs[REG_AX].hfword[l], imm8);
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: cmp ax, imm16
 		case 0x3D:
 			{
 				//Instruction name
 				INSTR_NAME("cmp ax, imm16");
-				
+
 				uint16_t imm16=CodeFetchW(1);
-				
+
 				TestVal(cast(uint16_t)(regs[REG_AX].word-imm16));
 				CheckSub16(regs[REG_AX].word, imm16);
-				
+
 				IP.word+=3;
 				break;
 			}
 			//asm: DS:
 			//case 0x3E:
-			
+
 			//asm: aas
 		case 0x3F:
 			{
 				//Instruction name
 				INSTR_NAME("aas");
-				
+
 				if(((regs[REG_AX].hfword[l] & 0xF) > 9) || FLAGS.AF)
 				{
 					regs[REG_AX].hfword[l]-=6;
@@ -1562,17 +1562,17 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("inc " ~ RegWordIndexToString(opcode-0x40));
-				
+
 				bool flagCF=FLAGS.CF;
 				CheckAdd16(regs[RMF(opcode)].word, 1);
 				regs[RMF(opcode)].word+=1;
 				TestVal(regs[RMF(opcode)].word);
 				FLAGS.CF=flagCF;
-				
+
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: dec reg16
 		case 0x48:
 		case 0x49:
@@ -1585,17 +1585,17 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("dec " ~ RegWordIndexToString(opcode-0x48));
-				
+
 				bool flagCF=FLAGS.CF;
 				CheckSub16(regs[RMF(opcode)].word, 1);
 				regs[RMF(opcode)].word-=1;
 				TestVal(regs[RMF(opcode)].word);
 				FLAGS.CF=flagCF;
-				
+
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: push reg16
 		case 0x50:
 		case 0x51:
@@ -1608,12 +1608,12 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("push " ~ RegWordIndexToString((opcode-0x50)));
-				
+
 				push16(regs[RMF(opcode)].word);
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: pop reg16
 		case 0x58:
 		case 0x59:
@@ -1626,18 +1626,18 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("pop " ~ RegWordIndexToString(opcode-0x58));
-				
+
 				regs[RMF(opcode)].word=pop16();
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: pusha
 		case 0x60:
 			{
 				//Instruction name
 				INSTR_NAME("pusha");
-				
+
 				uint16_t esptemp=regs[REG_SP].word;
 				push16(regs[REG_AX].word);
 				push16(regs[REG_CX].word);
@@ -1650,13 +1650,13 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: popa
 		case 0x61:
 			{
 				//Instruction name
 				INSTR_NAME("popa");
-				
+
 				regs[REG_DI].word=pop16();
 				regs[REG_SI].word=pop16();
 				regs[REG_BP].word=pop16();
@@ -1668,31 +1668,31 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: bound
 		case 0x62:
 			{
 				//Instruction name
 				INSTR_NAME("bound");
-				
+
 				struct BoundArrayLimits
 				{
 					align(1):
 					int16_t lowlimit;
 					int16_t highlimit;
 				}
-				
+
 				if(currsegment==NO_SEGMENT)
 				{
 					currsegment=DS_SEGMENT;
 				}
-				
+
 				//Manually get register
 				uint16_t* index=&regs[REG(modrm)].word;
-				
+
 				//Do the operation - todo: test
 				BoundArrayLimits* arraylimit=cast(BoundArrayLimits*)(RAM.GetAbsAddress16(SegIndexToSegReg(currsegment).word, Lea16(modrm & 0xFFFE, CodeFetchW(2))));
-				
+
 				if(*index<arraylimit.lowlimit || *index>arraylimit.highlimit)
 				{
 					RaiseInt(EXCEPTION_BOUNDRAGEEXCEEEDED);
@@ -1704,63 +1704,63 @@ class ProcessorX86
 				}
 				break;
 			}
-			
-			
+
+
 			/*
 				opcode 0x64-0x67 not supported by i80186
 			*/
-			
+
 			//asm: push imm16
 		case 0x68:
 			{
 				//Instruction name
 				INSTR_NAME("push imm16");
-				
+
 				push16(RAM.ReadMemory16(CS.word, cast(ushort)(IP.word+1)));
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: imul
 			//UNIMPLEMETED
 	//	case 0x69:
 			//{
 				//Instruction name
 			//	INSTR_NAME("imul");
-				
+
 			//	x86log.log("opcode 0x69: imul UNIMPLEMETED");
 			//	break;
 			//}
-			
+
 			//asm: push imm8
 		case 0x6A:
 			{
 				//Instruction name
 				INSTR_NAME("push imm8");
-				
+
 				push8(RAM.ReadMemory8(CS.word, cast(ushort)(IP.word+1)));
 				IP.word+=2;
 				break;
 			}
-			
-			//asm: imul 
+
+			//asm: imul
 			//UNIMPLEMETED
 		//case 0x6B:
 		//	{
 				//Instruction name
 		//		INSTR_NAME("imul");
-		//		
+		//
 		//		x86log.log("opcode 0x6B: imul UNIMPLEMETED");
 		//		break;
 		//	}
-			
+
 			//asm: insb
 		case 0x6C:
 			{
 				//Instruction name
 				INSTR_NAME("insb");
-				
-				
+
+
 				if(rep!=2) // We have REP prefix!
 				{
 					IP.word+=1;
@@ -1775,7 +1775,7 @@ class ProcessorX86
 				}
 
 				RAM.WriteMemory(ES.word, regs[REG_DI].word, InPort(regs[REG_DX].word) & 0x00FF);
-				
+
 				if(!GETBITFLAGS(DF))
 				{
 					regs[REG_DI].word+=1;
@@ -1784,17 +1784,17 @@ class ProcessorX86
 				{
 					regs[REG_DI].word-=1;
 				}
-				
+
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: insw
 		case 0x6D:
 			{
 				//Instruction name
 				INSTR_NAME("insw");
-				
+
 				if(rep!=2) // We have REP prefix!
 				{
 					IP.word+=1;
@@ -1809,7 +1809,7 @@ class ProcessorX86
 				}
 
 				RAM.WriteMemory(ES.word, regs[REG_DI].word, InPort(regs[REG_DX].word));
-				
+
 				if(!GETBITFLAGS(DF))
 				{
 					regs[REG_DI].word+=2;
@@ -1818,17 +1818,17 @@ class ProcessorX86
 				{
 					regs[REG_DI].word-=2;
 				}
-				
+
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: outsb
 		case 0x6E:
 			{
 				//Instruction name
 				INSTR_NAME("outsw");
-				
+
 				if(rep!=2) // We have REP prefix!
 				{
 					IP.word+=1;
@@ -1841,9 +1841,9 @@ class ProcessorX86
 					}
 					regs[REG_CX].word-=1;
 				}
-				
+
 				OutPort(regs[REG_DX].word, RAM.ReadMemory8(ES.word, regs[REG_DI].word) & 0x00FF);
-				
+
 				if(!GETBITFLAGS(DF))
 				{
 					regs[REG_DI].word+=1;
@@ -1852,17 +1852,17 @@ class ProcessorX86
 				{
 					regs[REG_DI].word-=1;
 				}
-				
+
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: outsw
 		case 0x6F:
 			{
 				//Instruction name
 				INSTR_NAME("outsw");
-				
+
 				if(rep!=2) // We have REP prefix!
 				{
 					IP.word+=1;
@@ -1875,9 +1875,9 @@ class ProcessorX86
 					}
 					regs[REG_CX].word-=1;
 				}
-				
+
 				OutPort(regs[REG_DX].word, RAM.ReadMemory8(ES.word, regs[REG_DI].word));
-				
+
 				if(!GETBITFLAGS(DF))
 				{
 					regs[REG_DI].word+=1;
@@ -1886,17 +1886,17 @@ class ProcessorX86
 				{
 					regs[REG_DI].word-=1;
 				}
-				
+
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: jo rel8
 		case 0x70:
 			{
 				//Instruction name
 				INSTR_NAME("jo rel8");
-				
+
 				if(FLAGS.OF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -1907,13 +1907,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jno rel8
 		case 0x71:
 			{
 				//Instruction name
 				INSTR_NAME("jno rel8");
-				
+
 				if(!FLAGS.OF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -1924,13 +1924,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jb/jnae/jc rel8
 		case 0x72:
 			{
 				//Instruction name
 				INSTR_NAME("jb/jnae/jc rel8");
-				
+
 				if(FLAGS.CF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -1941,13 +1941,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jnb/jae/jnc rel8
 		case 0x73:
 			{
 				//Instruction name
 				INSTR_NAME("jnb/jae/jnc rel8");
-				
+
 				if(!FLAGS.CF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -1958,13 +1958,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: je/jz rel8
 		case 0x74:
 			{
 				//Instruction name
 				INSTR_NAME("je/jz rel8");
-				
+
 				if(FLAGS.ZF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -1975,13 +1975,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jne/jnz rel8
 		case 0x75:
 			{
 				//Instruction name
 				INSTR_NAME("jne/jnz rel8");
-				
+
 				if(!FLAGS.ZF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -1992,13 +1992,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jbe/jna rel8
 		case 0x76:
 			{
 				//Instruction name
 				INSTR_NAME("jbe/jna rel8");
-				
+
 				if(FLAGS.CF || FLAGS.ZF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2009,13 +2009,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: ja/jnbe rel8
 		case 0x77:
 			{
 				//Instruction name
 				INSTR_NAME("ja/jnbe rel8");
-				
+
 				if(!FLAGS.CF && !FLAGS.ZF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2026,13 +2026,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: js rel8
 		case 0x78:
 			{
 				//Instruction name
 				INSTR_NAME("js rel8");
-				
+
 				if(FLAGS.SF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2043,13 +2043,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jns rel8
 		case 0x79:
 			{
 				//Instruction name
 				INSTR_NAME("jns rel8");
-				
+
 				if(!FLAGS.SF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2060,13 +2060,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jp/jpe rel8
 		case 0x7A:
 			{
 				//Instruction name
 				INSTR_NAME("jp/jpe rel8");
-				
+
 				if(FLAGS.PF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2077,13 +2077,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jnp/jpo rel8
 		case 0x7B:
 			{
 				//Instruction name
 				INSTR_NAME("jnp/jpo rel8");
-				
+
 				if(!FLAGS.PF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2094,13 +2094,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jl/jnge rel8
 		case 0x7C:
 			{
 				//Instruction name
 				INSTR_NAME("jl/jnge rel8");
-				
+
 				if(FLAGS.SF!=FLAGS.OF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2111,13 +2111,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jge/jnl rel8
 		case 0x7D:
 			{
 				//Instruction name
 				INSTR_NAME("jge/jnl rel8");
-				
+
 				if(FLAGS.SF==FLAGS.OF)
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2128,13 +2128,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jle/jng rel8
 		case 0x7E:
 			{
 				//Instruction name
 				INSTR_NAME("jle/jng rel8");
-				
+
 				if(FLAGS.ZF || (FLAGS.SF!=FLAGS.OF))
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2145,13 +2145,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: jg/jnle rel8
 		case 0x7F:
 			{
 				//Instruction name
 				INSTR_NAME("jg/jnle rel8");
-				
+
 				if(!FLAGS.ZF && (FLAGS.SF==FLAGS.OF))
 				{
 					IP.word+=cast(byte)CodeFetchB(1)+2;
@@ -2162,7 +2162,7 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 		case 0x80:
 		case 0x82:
 			{
@@ -2170,13 +2170,13 @@ class ProcessorX86
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm); //Dispute!
-				
+
 				switch(REG(modrm))
 				{
 					//asm: add imm8
@@ -2184,14 +2184,14 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("add r/m8, imm8");
-						
+
 						//The actual operation
 						CheckAdd8(*dest, CodeFetchB(0));
 						*dest+=CodeFetchB(0);
-						
+
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						IP.word+=1;
 						break;
 					}
@@ -2200,15 +2200,15 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("or r/m8, imm8");
-						
+
 						//The actual operation
 						*dest=CodeFetchB(0)|(*dest);
-						
+
 						//Set flags accordingly
 						TestVal(*dest);
 						FLAGS.CF=false;
 						FLAGS.OF=false;
-						
+
 						IP.word+=1;
 						break;
 					}
@@ -2217,25 +2217,25 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("adc r/m8, imm8");
-						
+
 						//The actual operation
 						bool tempCF=FLAGS.CF;
 						CheckAdd8(*dest, CodeFetchB(0), FLAGS.CF);
 						*dest+=CodeFetchB(0)+tempCF;
-						
+
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						IP.word+=1;
 						break;
 					}
-					
+
 					//asm: sbb
 				case 0x03:
 					{
 						//Instruction name
 						INSTR_NAME("sbb r/m8, imm8");
-						
+
 						//The actual operation
 						bool tempCF=FLAGS.CF;
 						CheckSub8(*dest, CodeFetchB(0), FLAGS.CF);
@@ -2243,17 +2243,17 @@ class ProcessorX86
 
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						IP.word+=1;
 						break;
 					}
-					
+
 					//asm: and
 				case 0x04:
 					{
 						//Instruction name
 						INSTR_NAME("and r/m8, imm8");
-						
+
 						//The actual operation
 						*dest&=CodeFetchB(0);
 
@@ -2261,50 +2261,50 @@ class ProcessorX86
 						TestVal(*dest);
 						FLAGS.OF=false;
 						FLAGS.CF=false;
-						
+
 						IP.word+=1;
 						break;
 					}
-					
+
 					//asm: sub
 				case 0x05:
 					{
 						//Instruction name
 						INSTR_NAME("sub r/m8, imm8");
-						
+
 						//The actual operation
 						CheckSub8(*dest, CodeFetchB(0));
 						*dest-=CodeFetchB(0);
 
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						IP.word+=1;
 						break;
 					}
-					
+
 					//asm: xor
 				case 0x06:
 					{
 						//Instruction name
 						INSTR_NAME("xor r/m8, imm8");
-						
+
 						//The actual operation
 						*dest^=CodeFetchB(0);
 
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						IP.word+=1;
 						break;
 					}
-					
+
 					//asm: cmp
 				case 0x07:
 					{
 						//Instruction name
 						INSTR_NAME("cmp r/m8, imm8");
-						
+
 						//The actual operation
 						//uint8_t temp=cast(uint8_t)(*source-CodeFetchB(0));
 						uint8_t temp=cast(uint8_t)(*dest-CodeFetchB(0));
@@ -2313,11 +2313,11 @@ class ProcessorX86
 						TestVal(temp);
 						//CheckSub8(*source, CodeFetchB(0));
 						CheckSub8(*dest, CodeFetchB(0));
-						
+
 						IP.word+=1;
 						break;
 					}
-					
+
 				default:
 					{
 						break;
@@ -2325,20 +2325,20 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 		case 0x81:
 			{
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
-				
+
 				uint16_t imm16=CodeFetchW(0);
 				switch(REG(modrm))
 				{
@@ -2351,10 +2351,10 @@ class ProcessorX86
 						//The actual operation
 						CheckAdd16(*dest, imm16);
 						*dest+=imm16;
-						
+
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						break;
 					}
 					//asm: or
@@ -2362,13 +2362,13 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("or r/m16, imm16");
-						
+
 						//The actual operation
 						*dest=imm16|*dest;
-						
+
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						break;
 					}
 					//asm: adc
@@ -2377,7 +2377,7 @@ class ProcessorX86
 						//Instruction name
 						INSTR_NAME("adc r/m16, imm16");
 
-						
+
 						//The actual operation
 						bool tempCF=FLAGS.CF;
 						CheckAdd16(*dest, imm16, FLAGS.CF);
@@ -2394,7 +2394,7 @@ class ProcessorX86
 						//Instruction name
 						INSTR_NAME("sbb r/m16, imm16");
 
-						
+
 						//The actual operation
 						bool tempCF=FLAGS.CF;
 						CheckSub16(*dest, imm16, FLAGS.CF);
@@ -2426,7 +2426,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("sub r/m16, imm16");
-						
+
 						//The actual operation
 						CheckSub16(*dest, imm16);
 						*dest-=imm16;
@@ -2441,7 +2441,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("xor r/m16, imm16");
-						
+
 						//The actual operation
 						*dest^=imm16;
 
@@ -2455,11 +2455,11 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("cmp r/m16, imm16");
-						
+
 						//The actual operation
 						//uint16_t temp=cast(uint16_t)(*source-CodeFetchW(0));
 						uint16_t temp=cast(uint16_t)(*dest-CodeFetchW(0));
-						
+
 						//Set flags accordingly
 						TestVal(temp);
 						//CheckSub16(*source, CodeFetchW(0));
@@ -2475,7 +2475,7 @@ class ProcessorX86
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: sub imm8
 			//THIS IS GROUP OF INSTRUCTIONS-FIX THIS THING
 			//To-do: Inspect futher
@@ -2484,31 +2484,31 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("sub r/m8, imm8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
-				
+
 				//The actual operation
 				CheckSub8(*dest, CodeFetchB(0));
 				*dest-=CodeFetchB(0);
-				
+
 				//Set flags accordingly
 				TestVal(*dest);
-				
+
 				IP.word+=1;
 				x86log.log("sub imm8 called with incomplete implementation");
 				break;
 			}
 			*/
-			
+
 			//asm <instruction> imm16
 		case 0x83:
 			{
@@ -2516,13 +2516,13 @@ class ProcessorX86
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
-				
+
 				uint16_t imm16=SignExtendB(CodeFetchB(0));
 
 				switch(REG(modrm))
@@ -2532,14 +2532,14 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("add r/m16, imm16");
-						
+
 						//The actual operation
 						CheckAdd16(*dest, imm16);
 						*dest+=imm16;
-						
+
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						IP.word+=1;
 						break;
 					}
@@ -2548,13 +2548,13 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("or r/m16, imm16");
-						
+
 						//The actual operation
 						*dest=imm16|*dest;
-						
+
 						//Set flags accordingly
 						TestVal(*dest);
-						
+
 						IP.word+=1;
 						break;
 					}
@@ -2568,7 +2568,7 @@ class ProcessorX86
 						bool tempCF=FLAGS.CF;
 						CheckAdd16(*dest, imm16, FLAGS.CF);
 						*dest+=imm16+tempCF;
-						
+
 						//Set flags accordingly
 						TestVal(*dest);
 
@@ -2597,7 +2597,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("and r/m16, imm16");
-						
+
 						//The actual operation
 						*dest&=imm16;
 
@@ -2614,7 +2614,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("sub r/m16, imm16");
-						
+
 						//The actual operation
 						CheckSub16(*dest, cast(ushort)(imm16+FLAGS.CF));
 						*dest-=imm16;
@@ -2630,7 +2630,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("xor r/m16, imm16");
-						
+
 						//The actual operation
 						*dest^=imm16;
 
@@ -2649,7 +2649,7 @@ class ProcessorX86
 						//The actual operation
 						//uint16_t temp=cast(uint16_t)(*source-imm16);
 						uint16_t temp=cast(uint16_t)(*dest-imm16);
-						
+
 						//Set flags accordingly
 						TestVal(temp);
 						//CheckSub16(*source, imm16);
@@ -2665,21 +2665,21 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: TEST <b>
 		case 0x84:
 			{
 				//Instruction name
 				INSTR_NAME("test r/m8, r8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				uint8_t temp=*dest&*source;
-				
+
 				//Set flags accordingly
 				TestVal(temp);
 				FLAGS.CF=false;
@@ -2697,15 +2697,15 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("test r/m16, r16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//The actual operation
 				uint16_t temp=*dest&*source;
-				
+
 				//Set flags accordingly
 				TestVal(temp);
 				FLAGS.CF=false;
@@ -2714,7 +2714,7 @@ class ProcessorX86
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
-				
+
 				break;
 			}
 
@@ -2723,7 +2723,7 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("xchg, r/m8, r8");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
@@ -2740,13 +2740,13 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: xchg, reg16, reg16
 		case 0x87:
 			{
 				//Instruction name
 				INSTR_NAME("xchg, r/m16, r16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
@@ -2770,7 +2770,7 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("mov Eb Gb");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
@@ -2784,14 +2784,14 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: mov Ev Gv
 		case 0x89:
 		case 0x8B:
 			{
 				//Instruction name
 				INSTR_NAME("mov Ev Gv");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
@@ -2805,22 +2805,22 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			// Seperate two segment register load/store opcodes
 			//asm: mov sreg
 		case 0x8C:
 			{
 				//Instruction name
 				INSTR_NAME("mov sreg");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode|1, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				//We're dealing with segment registers
 				source=&SegIndexToSegReg(REG(modrm)).word;
-				
+
 				//The actual operation
 				*dest=*source;
 
@@ -2829,7 +2829,7 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: lea r16, m
 			//Note: This instruction requires special handling
 			//INCOMPLETE IMPLEMENTATION - exception when source operand is not memory
@@ -2837,25 +2837,25 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("lea");
-				
+
 				//Manually get register
 				uint16_t* regdest=&regs[REG(modrm)].word;
-				
+
 				//Do the operation
 				*regdest=Lea16(modrm, CodeFetchW(2));
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: mov sreg
 		case 0x8E:
 			{
 				//Instruction name
 				INSTR_NAME("mov sreg");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
@@ -2863,7 +2863,7 @@ class ProcessorX86
 
 				//We're dealing with segment registers
 				dest=&SegIndexToSegReg(REG(modrm)).word;
-				
+
 				//The actual operation
 				*dest=*source;
 
@@ -2872,13 +2872,13 @@ class ProcessorX86
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: pop r/m16
 		case 0x8F:
 			{
 				//Instruction name
 				INSTR_NAME("pop r/m16");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
@@ -2886,7 +2886,7 @@ class ProcessorX86
 
 				//We're dealing with segment registers
 				//dest=&SegIndexToSegReg(REG(modrm)).word;
-				
+
 				//The actual operation
 				//*source=pop16();
 				*source=pop16();
@@ -2910,7 +2910,7 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("xchg AX, " ~ RegWordIndexToString(opcode-0x90));
-				
+
 				if(opcode==0x90)
 				{
 					INSTR_NAME("nop");
@@ -2924,88 +2924,88 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: cbw
 		case 0x98:
 			{
 				//Instruction name
 				INSTR_NAME("cbw");
-				
+
 				(IsSignSet(regs[REG_AX].hfword[l])) ? (regs[REG_AX].hfword[h]=0xFF) : (regs[REG_AX].hfword[h]=0x00);
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: cwd
 		case 0x99:
 			{
 				//Instruction name
 				INSTR_NAME("cwd");
-				
+
 				(IsSignSet(regs[REG_AX].word)) ? (regs[REG_DX].word=0xFFFF) : (regs[REG_DX].word=0x0000);
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm call Ap
 		case 0x9A:
 			{
 				//Instruction name
 				INSTR_NAME("call far");
-				
+
 				ushort jumpCS=CodeFetchW(3);
 				ushort jumpIP=CodeFetchW(1);
-				
+
 				push16(CS.word);
 				push16(cast(uint16_t)(IP.word+5));
 				CS.word=jumpCS;
 				IP.word=jumpIP;
 				break;
 			}
-			
+
 			//asm: fwait
 		case 0x9B:
 			{
 				//Instruction name
 				INSTR_NAME("fwait");
-				
+
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: pushf
 		case 0x9C:
 			{
 				//Instruction name
 				INSTR_NAME("pushf");
-				
+
 				//FLAGS.word|=0b1111000000000010; // Set some bits in FLAGS to 8086/80186 compatible
 				FLAGS.word|=0b0000000000000010; // Set some bits in FLAGS to 8086/80186 compatible
 				push16(FLAGS.word);
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: popf
 			//To-do: IMPROVE
-		case 0x9D: 
+		case 0x9D:
 			{
 				//Instruction name
 				INSTR_NAME("popf");
-				
+
 				FLAGS.word=pop16();
 				FLAGS.hfword[l]= FLAGS.hfword[l] & 0b11010111;
 				FLAGS.hfword[l]= FLAGS.hfword[l] | 0b00000010;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: sahf
 		case 0x9E:
 			{
 				//Instruction name
 				INSTR_NAME("sahf");
-				
+
 				uint8_t templflags=regs[REG_AX].hfword[h];
 				templflags= templflags & 0b11010111;
 				templflags= templflags | 0b00000010;
@@ -3013,13 +3013,13 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: lahf
 		case 0x9F:
 			{
 				//Instruction name
 				INSTR_NAME("lahf");
-				
+
 				uint8_t templflags=FLAGS.hfword[l];
 				templflags= templflags & 0b11010111;
 				templflags= templflags | 0b00000010;
@@ -3027,13 +3027,13 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: mov al, moffs8
 		case 0xA0:
 			{
 				//Instruction name
 				//INSTR_NAME("mov al, moffs8");
-				
+
 				if(currsegment==NO_SEGMENT)
 				{
 					currsegment=DS_SEGMENT;
@@ -3044,7 +3044,7 @@ class ProcessorX86
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: mov ax, moffs16
 		case 0xA1:
 			{
@@ -3053,52 +3053,52 @@ class ProcessorX86
 					currsegment=DS_SEGMENT;
 				}
 				regs[REG_AX].word=RAM.ReadMemory16(SegIndexToSegReg(currsegment).word, RAM.ReadMemory16(CS.word, cast(ushort)(IP.word+1)));
-				
+
 				//Instruction name
 				INSTR_NAME(format!"mov ax, [0x%04X]"(RAM.ReadMemory16(CS.word, cast(ushort)(IP.word+1))));
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: mov moffs8, al
 		case 0xA2:
 			{
 				//Instruction name
 				INSTR_NAME("mov moffs8, al");
-				
+
 				if(currsegment==NO_SEGMENT)
 				{
 					currsegment=DS_SEGMENT;
 				}
-				
+
 				RAM.WriteMemory(SegIndexToSegReg(currsegment).word, RAM.ReadMemory16(CS.word, cast(ushort)(IP.word+1)), regs[REG_AX].hfword[l]);
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: mov moffs16, ax
 		case 0xA3:
 			{
 				//Instruction name
 				INSTR_NAME("mov moffs16, ax");
-				
+
 				if(currsegment==NO_SEGMENT)
 				{
 					currsegment=DS_SEGMENT;
 				}
-				
+
 				RAM.WriteMemory(SegIndexToSegReg(currsegment).word, RAM.ReadMemory16(CS.word, cast(ushort)(IP.word+1)), regs[REG_AX].word);
 				IP.word+=3;
 				break;
 			}
-			
+
 			//To-do: Make movsb and movsw use memset and make them uninterruptible
 			//asm: movsb
 		case 0xA4:
 			{
 				//Instruction name
 				INSTR_NAME("movsb");
-				
+
 				if(rep!=REP_PREFIX_REP && rep!=REP_PREFIX_REPN) // We have REP prefix!
 				{
 					IP.word+=1;
@@ -3117,10 +3117,10 @@ class ProcessorX86
 				{
 					currsegment=DS_SEGMENT;
 				}
-				
+
 				uint8_t content1=RAM.ReadMemory8(SegIndexToSegReg(currsegment).word, regs[REG_SI].word);
 				RAM.WriteMemory(ES.word, regs[REG_DI].word, content1);
-				
+
 				if(!GETBITFLAGS(DF))
 				{
 					regs[REG_SI].word+=1;
@@ -3131,17 +3131,17 @@ class ProcessorX86
 					regs[REG_SI].word-=1;
 					regs[REG_DI].word-=1;
 				}
-				
+
 				IP.word-=prefixescount;
 				break;
 			}
-			
+
 			//asm: movsw
 		case 0xA5:
 			{
 				//Instruction name
 				INSTR_NAME("movsw");
-				
+
 				if(rep!=REP_PREFIX_REP && rep!=REP_PREFIX_REPN) // We have REP prefix!
 				{
 					IP.word+=1;
@@ -3160,10 +3160,10 @@ class ProcessorX86
 				{
 					currsegment=DS_SEGMENT;
 				}
-				
+
 				uint16_t content1=RAM.ReadMemory16(SegIndexToSegReg(currsegment).word, regs[REG_SI].word);
 				RAM.WriteMemory(ES.word, regs[REG_DI].word, content1);
-				
+
 				if(!GETBITFLAGS(DF))
 				{
 					regs[REG_SI].word+=2;
@@ -3174,11 +3174,11 @@ class ProcessorX86
 					regs[REG_SI].word-=2;
 					regs[REG_DI].word-=2;
 				}
-				
+
 				IP.word-=prefixescount;
 				break;
 			}
-			
+
 			//asm: cmpsb
 			//To-do: Fix this *thing* -  TOP PRIORITY
 		case 0xA6:
@@ -3190,12 +3190,12 @@ class ProcessorX86
 					uint8_t content1=RAM.ReadMemory8(SegIndexToSegReg(currsegment).word, regs[REG_SI].word);
 					uint8_t content2=RAM.ReadMemory8(ES.word, regs[REG_DI].word);
 
-					
+
 					//Set flags accordingly
 					uint8_t temp=cast(uint8_t)(content1-content2);
 					TestVal(temp);
 					CheckSub8(content1, content2);
-					
+
 					if(!GETBITFLAGS(DF))
 					{
 						regs[REG_SI].word+=1;
@@ -3224,11 +3224,11 @@ class ProcessorX86
 						{
 							tempval=-i;
 						}
-						
+
 						uint8_t content1=RAM.ReadMemory8(SegIndexToSegReg(currsegment).word, cast(ushort)(regs[REG_SI].word+tempval));
 						uint8_t content2=RAM.ReadMemory8(ES.word, cast(ushort)(regs[REG_DI].word+tempval));
-						
-						
+
+
 						//Set flags accordingly
 						uint8_t temp=cast(uint8_t)(content1-content2);
 						TestVal(temp);
@@ -3244,7 +3244,7 @@ class ProcessorX86
 							break;
 						}
 					}
-					
+
 					if(!FLAGS.DF)
 					{
 						regs[REG_SI].word+=(counter-regs[REG_CX].word);
@@ -3255,12 +3255,12 @@ class ProcessorX86
 						regs[REG_SI].word-=(counter-regs[REG_CX].word);
 						regs[REG_DI].word-=(counter-regs[REG_CX].word);
 					}
-					
+
 					IP.word+=1;
 				}
 				break;
 			}
-			
+
 			//asm: cmpsw
 		case 0xA7:
 			{
@@ -3271,12 +3271,12 @@ class ProcessorX86
 					uint16_t content1=RAM.ReadMemory16(SegIndexToSegReg(currsegment).word, regs[REG_SI].word);
 					uint16_t content2=RAM.ReadMemory16(ES.word, regs[REG_DI].word);
 
-					
+
 					//Set flags accordingly
 					uint16_t temp=cast(uint16_t)(content1-content2);
 					TestVal(temp);
 					CheckSub16(content1, content2);
-					
+
 					if(!FLAGS.DF)
 					{
 						regs[REG_SI].word+=2;
@@ -3307,8 +3307,8 @@ class ProcessorX86
 						}
 						uint16_t content1=RAM.ReadMemory16(SegIndexToSegReg(currsegment).word, cast(ushort)(regs[REG_SI].word+tempval*2));
 						uint16_t content2=RAM.ReadMemory16(ES.word, cast(ushort)(regs[REG_DI].word+tempval*2));
-						
-						
+
+
 						//Set flags accordingly
 						uint16_t temp=cast(uint16_t)(content1-content2);
 						TestVal(temp);
@@ -3327,7 +3327,7 @@ class ProcessorX86
 						}
 					}
 					x86instr.logf("OUTSIDE 2!");
-					
+
 					if(!FLAGS.DF)
 					{
 						regs[REG_SI].word+=(counter-regs[REG_CX].word)*2;
@@ -3338,60 +3338,60 @@ class ProcessorX86
 						regs[REG_SI].word-=(counter-regs[REG_CX].word)*2;
 						regs[REG_DI].word-=(counter-regs[REG_CX].word)*2;
 					}
-					
+
 					IP.word+=1;
 				}
 				break;
 			}
-			
+
 			//asm: test al, lb
 		case 0xA8:
 			{
 				//Instruction name
 				INSTR_NAME("test al, imm8");
-				
+
 				IP.word+=1;
 				ubyte imm8=CodeFetchB(0);
 				ubyte temp=regs[REG_AX].hfword[l] & imm8;
 				TestVal(temp);
-				
+
 				FLAGS.CF=false;
 				FLAGS.OF=false;
 
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: test ax, lv
 		case 0xA9:
 			{
 				//Instruction name
 				INSTR_NAME("test ax, imm16");
-				
+
 				IP.word+=1;
 				uint16_t imm16=CodeFetchB(0);
 				uint16_t temp=regs[REG_AX].word & imm16;
 				TestVal(temp);
-				
+
 				FLAGS.CF=false;
 				FLAGS.OF=false;
 
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: stosb
 		case 0xAA:
 			{
 				//Instruction name
 				INSTR_NAME("stosb");
-				
+
 				if((rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN) && !regs[REG_CX].word)
 				{
 					IP.word+=1;
 					break;
 				}
-				
+
 				if(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN)
 				{
 					if(regs[REG_DI].word+regs[REG_CX].word>0xFFFF)
@@ -3404,7 +3404,7 @@ class ProcessorX86
 				{
 					RAM.WriteMemory(SegIndexToSegReg(ES_SEGMENT).word, regs[REG_DI].word, regs[REG_AX].hfword[l]);
 				}
-				
+
 				if(!FLAGS.DF)
 				{
 					(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN) ?  (regs[REG_DI].word+=regs[REG_CX].word) : (regs[REG_DI].word+=1);
@@ -3414,24 +3414,24 @@ class ProcessorX86
 				{
 					(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN) ?  (regs[REG_DI].word-=regs[REG_CX].word) : (regs[REG_DI].word-=1);
 				}
-				
+
 				if(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN) regs[REG_CX].word=0;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: stosw
 		case 0xAB:
 			{
 				//Instruction name
 				INSTR_NAME("stosw");
-				
+
 				if((rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN) && !regs[REG_CX].word)
 				{
 					IP.word+=1;
 					break;
 				}
-				
+
 				if(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN)
 				{
 					if(regs[REG_DI].word+regs[REG_CX].word*2>0xFFFF)
@@ -3444,7 +3444,7 @@ class ProcessorX86
 				{
 					RAM.WriteMemory(SegIndexToSegReg(ES_SEGMENT).word, regs[REG_DI].word, regs[REG_AX].word);
 				}
-				
+
 				if(!GETBITFLAGS(DF))
 				{
 					(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN) ?  (regs[REG_DI].word+=regs[REG_CX].word*2) : (regs[REG_DI].word+=2);
@@ -3453,19 +3453,19 @@ class ProcessorX86
 				{
 					(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN) ?  (regs[REG_DI].word-=regs[REG_CX].word*2) : (regs[REG_DI].word-=2);
 				}
-				
+
 				if(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN) regs[REG_CX].word=0;
 				IP.word+=1;
-				
+
 				break;
 			}
-			
+
 			//asm: lodsb
 		case 0xAC:
 			{
 				//Instruction name
 				INSTR_NAME("lodsb");
-				 
+
 				if(rep!=REP_PREFIX_REP && rep!=REP_PREFIX_REPN) // We have REP prefix!
 				{
 					IP.word+=1;
@@ -3479,14 +3479,14 @@ class ProcessorX86
 					}
 					regs[REG_CX].word-=1;
 				}
-				
+
 				if(currsegment==NO_SEGMENT)
 				{
 					currsegment=DS_SEGMENT;
 				}
 
 				regs[REG_AX].hfword[l]=RAM.ReadMemory8(SegIndexToSegReg(currsegment).word, regs[REG_SI].word);
-				
+
 				if(!FLAGS.DF)
 				{
 					regs[REG_SI].word+=1;
@@ -3495,20 +3495,20 @@ class ProcessorX86
 				{
 					regs[REG_SI].word-=1;
 				}
-				
+
 				if(rep==REP_PREFIX_REP || rep==REP_PREFIX_REPN)
 				{
 					IP.word-=prefixescount;
 				}
 				break;
 			}
-			
+
 			//asm: lodsw
 		case 0xAD:
 			{
 				//Instruction name
 				INSTR_NAME("lodsw");
-				
+
 				if(rep!=REP_PREFIX_REP && rep!=REP_PREFIX_REPN) // We have REP prefix!
 				{
 					IP.word+=1;
@@ -3522,14 +3522,14 @@ class ProcessorX86
 					}
 					regs[REG_CX].word-=1;
 				}
-				
+
 				if(currsegment==NO_SEGMENT)
 				{
 					currsegment=DS_SEGMENT;
 				}
 
 				regs[REG_AX].word=RAM.ReadMemory16(SegIndexToSegReg(currsegment).word, regs[REG_SI].word);
-				
+
 				if(!GETBITFLAGS(DF))
 				{
 					regs[REG_SI].word+=2;
@@ -3545,21 +3545,21 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: scasb
 		case 0xAE:
 			{
 				//Instruction name
 				INSTR_NAME("scasb");
-				
+
 				if(rep!=REP_PREFIX_REPE && rep!=REP_PREFIX_REPN) // We have REP prefix!
 				{
 					uint8_t content2=RAM.ReadMemory8(ES.word, regs[REG_DI].word);
-				
+
 					//Set flags accordingly
 					TestVal(cast(uint8_t)(regs[REG_AX].hfword[l]-content2));
 					CheckSub8(regs[REG_AX].hfword[l], content2);
-				
+
 					if(!FLAGS.DF)
 					{
 						regs[REG_DI].word+=1;
@@ -3578,11 +3578,11 @@ class ProcessorX86
 						break;
 					}
 					uint8_t content2=RAM.ReadMemory8(ES.word, regs[REG_DI].word);
-				
+
 					//Set flags accordingly
 					TestVal(cast(uint8_t)(regs[REG_AX].hfword[l]-content2));
 					CheckSub8(regs[REG_AX].hfword[l], content2);
-				
+
 					if(!FLAGS.DF)
 					{
 						regs[REG_DI].word+=1;
@@ -3604,24 +3604,24 @@ class ProcessorX86
 					}
 					IP.word-=prefixescount;
 				}
-				
+
 				break;
 			}
-			
+
 			//asm: scasw
 		case 0xAF:
 			{
 				//Instruction name
 				INSTR_NAME("scasw");
-				
+
 				if(rep!=REP_PREFIX_REPE && rep!=REP_PREFIX_REPN) // We have REP prefix!
 				{
 					uint16_t content2=RAM.ReadMemory16(ES.word, regs[REG_DI].word);
-				
+
 					//Set flags accordingly
 					TestVal(cast(uint16_t)(regs[REG_AX].word-content2));
 					CheckSub16(regs[REG_AX].word, content2);
-				
+
 					if(!FLAGS.DF)
 					{
 						regs[REG_DI].word+=2;
@@ -3640,11 +3640,11 @@ class ProcessorX86
 						break;
 					}
 					uint16_t content2=RAM.ReadMemory16(ES.word, regs[REG_DI].word);
-				
+
 					//Set flags accordingly
 					TestVal(cast(uint16_t)(regs[REG_AX].word-content2));
 					CheckSub16(regs[REG_AX].word, content2);
-				
+
 					if(!FLAGS.DF)
 					{
 						regs[REG_DI].word+=2;
@@ -3668,95 +3668,95 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: mov al, imm8
 		case 0xB0:
 			{
 				//Instruction name
 				INSTR_NAME("mov al, imm8");
-				
+
 				regs[REG_AX].hfword[l]=CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: mov cl, imm8
 		case 0xB1:
 			{
 				//Instruction name
 				INSTR_NAME("mov cl, imm8");
-				
+
 				regs[REG_CX].hfword[l]=CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: mov dl, imm8
 		case 0xB2:
 			{
 				//Instruction name
 				INSTR_NAME("mov dl, imm8");
-				
+
 				regs[REG_DX].hfword[l]=CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: mov bl, imm8
 		case 0xB3:
 			{
 				//Instruction name
 				INSTR_NAME("mov bl, imm8");
-				
+
 				regs[REG_BX].hfword[l]=CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: mov ah, imm8
 		case 0xB4:
 			{
 				//Instruction name
 				INSTR_NAME("mov ah, imm8");
-				
+
 				regs[REG_AX].hfword[h]=CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: mov ch, imm8
 		case 0xB5:
 			{
 				//Instruction name
 				INSTR_NAME("mov ch, imm8");
-				
+
 				regs[REG_CX].hfword[h]=CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: mov dh, imm8
 		case 0xB6:
 			{
 				//Instruction name
 				INSTR_NAME("mov dh, imm8");
-				
+
 				regs[REG_DX].hfword[h]=CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: mov bh, imm8
 		case 0xB7:
 			{
 				//Instruction name
 				INSTR_NAME("mov bh, imm8");
-				
+
 				regs[REG_BX].hfword[h]=CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: mov <reg>, imm16
 		case 0xB8:
 		case 0xB9:
@@ -3769,131 +3769,131 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("mov " ~ RegWordIndexToString(opcode-0xB8) ~ ", " ~ to!string(CodeFetchW(1)));
-				
+
 				regs[opcode-0xB8].word=CodeFetchW(1);
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: retn imm16
 			//To-do: Check whether the fix is working
 		case 0xC2:
 			{
 				//Instruction name
 				INSTR_NAME("retn imm16");
-				
+
 				ushort stackAdd=CodeFetchW(1);
 				IP.word=pop16();
 				regs[REG_SP].word+=stackAdd;
 				break;
 			}
-			
+
 			//asm: retn
 		case 0xC3:
 			{
 				//Instruction name
 				INSTR_NAME("retn");
-				
+
 				IP.word=pop16();
 				break;
 			}
-			
+
 			//asm: les
 		case 0xC4:
 			{
 				//Instruction name
 				INSTR_NAME("les");
-				
+
 				//Retrieve operands
 				void *dest;
 				void *source;
 				SetupOperands(modrm, 0b11, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 				Pointer8086_32bit* arraylimit=cast(Pointer8086_32bit*)source;
-				
+
 				//Manually get register
 				uint16_t* regdest=&regs[REG(modrm)].word;
-				
+
 				//Do the operation
 				ES.word=arraylimit.highpart;
 				*regdest=arraylimit.lowpart;
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: lds
 		case 0xC5:
 			{
 				//Instruction name
 				INSTR_NAME("lds");
-				
+
 				//Retrieve operands
 				void *dest;
 				void *source;
 				SetupOperands(modrm, 0b11, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 				Pointer8086_32bit* arraylimit=cast(Pointer8086_32bit*)source;
-				
+
 				//Manually get register
 				uint16_t* regdest=&regs[REG(modrm)].word;
-				
+
 				//Do the operation
 				DS.word=arraylimit.highpart;
 				*regdest=arraylimit.lowpart;
-				
+
 				//Move past the current instruction and set IP register to next instruction
 				IP.word+=2;
 				AdjustIP(IP, modrm);
 				break;
 			}
-			
+
 			//asm: mov Eb Ib
 		case 0xC6:
 			{
 				//Instruction name
 				INSTR_NAME("mov Eb Ib");
-				
+
 				//Retrieve operands
 				uint8_t *dest;
 				uint8_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				AdjustIP(IP, modrm);
 				*source=CodeFetchB(2);
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: mov Ev Iv
 		case 0xC7:
 			{
 				//Instruction name
 				INSTR_NAME("mov Ev Iv");
-				
+
 				//Retrieve operands
 				uint16_t *dest;
 				uint16_t *source;
 				SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-				
+
 				AdjustIP(IP, modrm);
 				*source=CodeFetchW(2);
-				IP.word+=4;	
+				IP.word+=4;
 				break;
 			}
-			
+
 			//asm: enter
 			//INCOMPLETE - probably incomplete
 		case 0xC8:
 			{
 				//Instruction name
 				INSTR_NAME("enter");
-				
+
 				uint16_t imm16=CodeFetchW(1);
 				uint8_t imm8=RAM.ReadMemory8(CS.word, cast(ushort)(IP.word+3));
-				
+
 				imm8=imm8%32;
-				
+
 				push16(regs[REG_BP].word);
 				uint16_t tempframeptr=regs[REG_SP].word;
 				if(imm8!=0)
@@ -3906,78 +3906,78 @@ class ProcessorX86
 				}
 				regs[REG_BP].word=tempframeptr;
 				regs[REG_SP].word-=imm16;
-				
-				
-				
+
+
+
 				IP.word+=4;
 				break;
 			}
-			
+
 			//asm: leave
 		case 0xC9:
 			{
 				//Instruction name
 				INSTR_NAME("leave");
-				
+
 				regs[REG_SP].word=regs[REG_BP].word;
 				regs[REG_BP].word=pop16();
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: retf imm16
 		case 0xCA:
 			{
 				//Instruction name
 				INSTR_NAME("retf imm16");
-				
+
 				uint16_t freestack=CodeFetchW(1);
 				IP.word=pop16();
 				CS.word=pop16();
 				regs[REG_SP].word+=freestack;
 				break;
 			}
-			
+
 			//asm: retf
 		case 0xCB:
 			{
 				//Instruction name
 				INSTR_NAME("retf");
-				
+
 				IP.word=pop16();
 				CS.word=pop16();
 				break;
 			}
-			
+
 			//asm: int3
 		case 0xCC:
 			{
 				//Instruction name
 				INSTR_NAME("int3");
-				
+
 				IP.word+=1;
 				RaiseInt(EXCEPTION_BREAKPOINT);
 				break;
 			}
-			
+
 			//asm: int imm8
 		case 0xCD:
 			{
 				//Instruction name
 				INSTR_NAME("int " ~ to!string(CodeFetchB(1)));
-				
+
 				uint8_t vectornumber=CodeFetchB(1);
 				IP.word+=2;
 				RaiseInt(vectornumber);
 				break;
 			}
-			
+
 			//asm: into
 		case 0xCE:
 			{
 				//Instruction name
 				INSTR_NAME("into");
-				
+
 				if(FLAGS.OF)
 				{
 					RaiseInt(EXCEPTION_OVERFLOW);
@@ -3988,20 +3988,20 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: iret
 		case 0xCF:
 			{
 				//Instruction name
 				INSTR_NAME("iret");
-				
+
 				IP.word=pop16();
 				CS.word=pop16();
 				FLAGS.word=pop16();
 				NMIretawaiting=false;
 				break;
 			}
-			
+
 			//asm: GRP2b
 			//INCOMPLETE
 		case 0xD0:
@@ -4015,7 +4015,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("ROL r/m8 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD2)
 						{
@@ -4029,22 +4029,22 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC0)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source>>7;
-							
+
 							*dest=cast(ubyte)((*dest<<1)+CFstat);
 							shiftcount--;
 						}
@@ -4057,7 +4057,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("ROR r/m8 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD2)
 						{
@@ -4071,36 +4071,36 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC0)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source & 0x1;
-							
+
 							*dest=cast(ubyte)((*dest>>1)+(CFstat<<7));
 							shiftcount--;
 						}
 						FLAGS.CF=*dest>>7;
-						
+
 						break;
 					}
-					
+
 				//asm: RCL r/m8 , CL/1
 				case 0x02:
 					{
 						//Instruction name
 						INSTR_NAME("RCL r/m8 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD2)
 						{
@@ -4114,22 +4114,22 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC0)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source>>7;
-							
+
 							*dest=cast(ubyte)((*dest<<1)+FLAGS.CF);
 							FLAGS.CF=CFstat;
 							shiftcount--;
@@ -4141,13 +4141,13 @@ class ProcessorX86
 
 						break;
 					}
-					
+
 				//asm: RCR r/m8 , CL/1
 				case 0x03:
 					{
 						//Instruction name
 						INSTR_NAME("RCR r/m8 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD2)
 						{
@@ -4161,27 +4161,27 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC0)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						if(shiftcount==1)
 						{
 							FLAGS.OF=*source>>7 ^ FLAGS.CF;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source&0x1;
-							
+
 							*dest=cast(ubyte)((*dest>>1)|FLAGS.CF<<7);
 							FLAGS.CF=CFstat;
 							shiftcount--;
@@ -4189,14 +4189,14 @@ class ProcessorX86
 
 						break;
 					}
-					
+
 					//asm: SAL/SHL r/m8 , CL/1
 				case 0x04:
 				case 0x06:
 					{
 						//Instruction name
 						INSTR_NAME("SAL/SHL r/m8 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD2)
 						{
@@ -4210,42 +4210,42 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC0)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						uint8_t shiftcounttemp=shiftcount;
 						while(shiftcount)
 						{
 							bool CFstat= *source >> 7;
 							FLAGS.CF=CFstat;
-							
+
 							*source = cast(uint8_t)(*source << 1);
 							shiftcount--;
 						}
-						
+
 						if(shiftcounttemp==1)
 						{
 							FLAGS.OF=(*source >> 7) ^ FLAGS.CF;
 						}
-						
+
 						break;
 					}
-					
+
 					//asm: SHR r/m8 , CL/1
 				case 0x05:
 					{
 						//Instruction name
 						INSTR_NAME("SHR r/m8 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD2)
 						{
@@ -4259,36 +4259,36 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC0)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source & 0x1;
 							FLAGS.CF=CFstat;
-							
+
 							*source=*source>>>1;
 							shiftcount--;
 						}
 
 						break;
 					}
-					
+
 					//asm: SAR r/m8 , CL/1
 				case 0x07:
 					{
 						//Instruction name
 						INSTR_NAME("SAR r/m8 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD2)
 						{
@@ -4302,31 +4302,31 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC0)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
-						
+
+
 						//To-do: Improve even more...
 						while(shiftcount)
 						{
 							bool CFstat= *source&0x1;
 							ubyte bit7=(*source&0x80);
 							FLAGS.CF=CFstat;
-							
+
 							*source=(*source>>1)|bit7;
 							shiftcount--;
 						}
 						FLAGS.OF=false;
-						
+
 						break;
 					}
 				default:
@@ -4339,7 +4339,7 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: GRP2b
 			//INCOMPLETE
 		case 0xD1:
@@ -4353,7 +4353,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("ROL r/m16 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD3)
 						{
@@ -4367,22 +4367,22 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC1)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source>>15;
-							
+
 							*dest=cast(ushort)((*dest<<1)+CFstat);
 							shiftcount--;
 						}
@@ -4395,7 +4395,7 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("ROR r/m16 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD3)
 						{
@@ -4409,36 +4409,36 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC1)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source & 0x1;
-							
+
 							*dest=cast(ushort)((*dest>>1)+(CFstat<<15));
 							shiftcount--;
 						}
 						FLAGS.CF=*dest>>15;
-						
+
 						break;
 					}
-					
+
 					//asm: RCL r/m16 , CL/1
 				case 0x02:
 					{
 						//Instruction name
 						INSTR_NAME("RCL r/m16 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD3)
 						{
@@ -4452,22 +4452,22 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC1)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source>>15;
-							
+
 							*dest=cast(ushort)((*dest<<1)+FLAGS.CF);
 							FLAGS.CF=CFstat;
 							shiftcount--;
@@ -4479,13 +4479,13 @@ class ProcessorX86
 
 						break;
 					}
-					
+
 				//asm: RCR r/m16 , CL/1
 				case 0x03:
 					{
 						//Instruction name
 						INSTR_NAME("RCR r/m16 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD3)
 						{
@@ -4499,27 +4499,27 @@ class ProcessorX86
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
 
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC1)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						if(shiftcount==1)
 						{
 							FLAGS.OF=*source>>15 ^ FLAGS.CF;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source&0x1;
-							
+
 							*dest=cast(ushort)((*dest>>1)|FLAGS.CF<<15);
 							FLAGS.CF=CFstat;
 							shiftcount--;
@@ -4527,14 +4527,14 @@ class ProcessorX86
 
 						break;
 					}
-					
+
 					//asm: SAL/SHL r/m16 , CL/1
 				case 0x04:
 				case 0x06:
 					{
 						//Instruction name
 						INSTR_NAME("SAL/SHL r/m16 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD3)
 						{
@@ -4546,45 +4546,45 @@ class ProcessorX86
 						uint16_t *dest; //Not used here
 						uint16_t *source;
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-						
+
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC1)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						uint16_t shiftcounttemp=shiftcount;
 						while(shiftcount)
 						{
 							bool CFstat= cast(ushort)(*source >> 15);
 							FLAGS.CF=CFstat;
-							
+
 							*source = cast(ushort)(*source << 1);
 							shiftcount--;
 						}
-						
+
 						if(shiftcounttemp==1)
 						{
 							FLAGS.OF=(*source >> 15) ^ FLAGS.CF;
 						}
-						
+
 						TestVal(*source);
-						
+
 						break;
 					}
-					
+
 					//asm: SHR r/m16 , CL/1
 				case 0x05:
 					{
 						//Instruction name
 						INSTR_NAME("SHR r/m16 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD3)
 						{
@@ -4596,12 +4596,12 @@ class ProcessorX86
 						uint16_t *dest; //Not used here
 						uint16_t *source;
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-						
+
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC1)
 						{
 							shiftcount=CodeFetchB(0);
@@ -4609,30 +4609,30 @@ class ProcessorX86
 							IP.word+=1;
 						}
 
-						
+
 						uint16_t tempdest=*source;
 						while(shiftcount)
 						{
 							bool CFstat= *source & 0x1;
 							FLAGS.CF=CFstat;
-							
+
 							*source=*source>>>1;
 							shiftcount--;
 						}
-						
+
 						FLAGS.OF=(tempdest>>15);
-						
+
 						TestVal(*source);
-						
+
 						break;
 					}
-					
+
 					//asm: SAR r/m16 , CL/1
 				case 0x07:
 					{
 						//Instruction name
 						INSTR_NAME("SAR r/m16 , CL/1");
-						
+
 						uint8_t shiftcount=1;
 						if(opcode==0xD3)
 						{
@@ -4644,30 +4644,30 @@ class ProcessorX86
 						uint16_t *dest; //Not used here
 						uint16_t *source;
 						SetupOperands(modrm, opcode, CodeFetchW(2), cast(void**)&dest, cast(void**)&source, currsegment);
-						
+
 						(DIREC(opcode)) ? (dest=source) : (source=dest); // Small code to fix opcode resolution
-						
+
 						//Set IP
 						IP.word+=2;
 						AdjustIP(IP, modrm);
-						
+
 						if(opcode==0xC1)
 						{
 							shiftcount=CodeFetchB(0);
 							shiftcount= shiftcount & 0x1F;
 							IP.word+=1;
 						}
-						
+
 						while(shiftcount)
 						{
 							bool CFstat= *source&0x1;
 							ushort bit15=(*source&0x8000);
 							FLAGS.CF=CFstat;
-							
+
 							*source=(*source>>1)|bit15;
 							shiftcount--;
 						}
-						
+
 						FLAGS.OF=false;
 						break;
 					}
@@ -4680,43 +4680,43 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: AAM
 			//INCOMPLETE - flags
 		case 0xD4:
 			{
 				//Instruction name
 				INSTR_NAME("aam");
-				
+
 				uint8_t imm8=CodeFetchB(1);
-				
+
 				regs[REG_AX].hfword[h]=regs[REG_AX].hfword[l]/imm8;
 				regs[REG_AX].hfword[l]=regs[REG_AX].hfword[l]%imm8;
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: AAD
 		case 0xD5:
 			{
 				//Instruction name
 				INSTR_NAME("aad");
-				
+
 				uint8_t imm8=CodeFetchB(1);
-				
+
 				uint8_t tempAL=regs[REG_AX].hfword[l];
 				uint8_t tempAH=regs[REG_AX].hfword[h];
-				
+
 				regs[REG_AX].hfword[l]=tempAL+(tempAH*imm8) & 0xFF;
 				TestVal(regs[REG_AX].hfword[l]);
-				
+
 				regs[REG_AX].hfword[l]=0;
-				
+
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: SALC
 		case 0xD6:
 			{
@@ -4727,13 +4727,13 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: XLATB/XLAT
 		case 0xD7:
 			{
 				//Instruction name
 				INSTR_NAME("xlat");
-				
+
 				if(currsegment==NO_SEGMENT)
 				{
 					currsegment=DS_SEGMENT;
@@ -4742,7 +4742,7 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//FPU instructions
 		case 0xD8:
 		case 0xD9:
@@ -4758,13 +4758,13 @@ class ProcessorX86
 				FPU_Instruction_Handler(opcode);
 				break;
 			}
-			
+
 			//asm: LOOPNE/LOOPNZ rel8
 		case 0xE0:
 			{
 				//Instruction name
 				INSTR_NAME("LOOPNE rel8");
-				
+
 				regs[REG_CX].word-=1;
 				if(regs[REG_CX].word && !GETBITFLAGS(ZF))
 				{
@@ -4776,13 +4776,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: LOOPE/LOOPZ rel8
 		case 0xE1:
 			{
 				//Instruction name
 				INSTR_NAME("LOOPE rel8");
-				
+
 				regs[REG_CX].word-=1;
 				if(regs[REG_CX].word && GETBITFLAGS(ZF))
 				{
@@ -4794,13 +4794,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: LOOP rel8
 		case 0xE2:
 			{
 				//Instruction name
 				INSTR_NAME("LOOP rel8");
-				
+
 				regs[REG_CX].word-=1;
 				if(regs[REG_CX].word)
 				{
@@ -4812,13 +4812,13 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: JCXZ rel8
 		case 0xE3:
 			{
 				//Instruction name
 				INSTR_NAME("JCXZ rel8");
-				
+
 				if(!regs[REG_CX].word)
 				{
 					IP.word+=cast(int8_t)(CodeFetchB(1))+2;
@@ -4829,146 +4829,146 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: in al, imm8
 		case 0xE4:
 			{
 				//Instruction name
 				INSTR_NAME("in al, imm8");
-				
+
 				regs[REG_AX].hfword[l]=InPort(RAM.ReadMemory8(CS.word, cast(ushort)(IP.word+1))) & 0x00FF;
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: in ax, imm8
 		case 0xE5:
 			{
 				//Instruction name
 				INSTR_NAME("in ax, imm8");
-				
+
 				regs[REG_AX].word=InPort(RAM.ReadMemory8(CS.word, cast(ushort)(IP.word+1)));
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: out imm8, al
 		case 0xE6:
 			{
 				//Instruction name
 				INSTR_NAME("out imm8, al");
-				
+
 				OutPort(RAM.ReadMemory8(CS.word, cast(ushort)(IP.word+1)), regs[REG_AX].hfword[l]);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: out imm8, ax
 		case 0xE7:
 			{
 				//Instruction name
 				INSTR_NAME("out imm8, ax");
-				
+
 				OutPort(RAM.ReadMemory8(CS.word, cast(ushort)(IP.word+1)), regs[REG_AX].word);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: call Jv
 		case 0xE8:
 			{
 				//Instruction name
 				INSTR_NAME("call Jv");
-				
+
 				push16(cast(ushort)(IP.word+3));
 				IP.word+=cast(short)CodeFetchW(1);
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: jmp Jv
 		case 0xE9:
 			{
 				//Instruction name
 				INSTR_NAME("jmp Jv");
-				
+
 				IP.word+=cast(short)CodeFetchW(1);
 				IP.word+=3;
 				break;
 			}
-			
+
 			//asm: jmp far
 		case 0xEA:
 			{
 				//Instruction name
 				INSTR_NAME("jmp far");
-				
+
 				uint16_t offset=CodeFetchW(1);
 				uint16_t segment=CodeFetchW(3);
-				
+
 				CS.word=segment;
 				IP.word=offset;
 				break;
 			}
-			
+
 			//asm: jmp short $+x
 		case 0xEB:
 			{
 				//Instruction name
 				INSTR_NAME("jmp short $+x");
-				
+
 				IP.word+=cast(int8_t)CodeFetchB(1);
 				IP.word+=2;
 				break;
 			}
-			
+
 			//asm: in al, dx
 		case 0xEC:
 			{
 				//Instruction name
 				INSTR_NAME("in al, dx");
-				
+
 				regs[REG_AX].hfword[l]=InPort(regs[REG_DX].word)&0x00FF;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: in ax, dx
 		case 0xED:
 			{
 				//Instruction name
 				INSTR_NAME("in ax, dx");
-				
+
 				regs[REG_AX].word=InPort(regs[REG_DX].word);
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm out DX, al
 		case 0xEE:
 			{
 				//Instruction name
 				INSTR_NAME("out DX, al");
-				
+
 				OutPort(regs[REG_DX].word, regs[REG_AX].hfword[l]);
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm out DX, ax
 		case 0xEF:
 			{
 				//Instruction name
 				INSTR_NAME("out DX, ax");
-				
+
 				OutPort(regs[REG_DX].word, regs[REG_AX].word);
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: LOCK:
-			//case 0xF0:	
-			
+			//case 0xF0:
+
 			//asm: int1/icebp
 			//Note: When the instructions has REP prefix, then the program will service request from the VM
 		case 0xF1:
@@ -4986,10 +4986,10 @@ class ProcessorX86
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: REPNE:
 			//case 0xF2:
-			
+
 			//asm: REP:
 			//case 0xF3:
 
@@ -4998,7 +4998,7 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("hlt");
-				
+
 				halted=true;
 				x86instr.flush();
 				x86log.logf("HLT instruction called! CS=0x%04X | IP=0x%04X", CS.word, IP.word);
@@ -5016,12 +5016,12 @@ class ProcessorX86
 			{
 				//Instruction name
 				INSTR_NAME("cmc");
-				
+
 				FLAGS.CF=!FLAGS.CF;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: GRP3a
 		case 0xF6:
 			{
@@ -5039,39 +5039,39 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("test Eb Ib");
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						ubyte imm8=CodeFetchB(0);
 						ubyte temp=*source & imm8;
 						TestVal(temp);
-						
+
 						FLAGS.CF=false;
 						FLAGS.OF=false;
 						IP.word+=1;
-						
+
 						break;
 					}
 
-					//asm: not 
+					//asm: not
 				case 0x02:
 					{
 						//Instruction name
 						INSTR_NAME("not Eb");
-	
+
 						//*source=~*source;
 						*source=cast(ubyte)(~cast(int)*source);
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: neg
 				case 0x03:
 					{
 						//Instruction name
 						INSTR_NAME("neg Eb");
-						
+
 						*source=cast(ubyte)(-cast(int)*source);
 						TestVal(*source);
 						FLAGS.CF=(*source) ? true : false;
@@ -5080,15 +5080,15 @@ class ProcessorX86
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: mul
 				case 0x04:
 					{
 						//Instruction name
 						INSTR_NAME("mul Eb");
-						
+
 						regs[REG_AX].word=regs[REG_AX].hfword[l]*(*source);
-						
+
 						bool ZFpre=FLAGS.ZF;
 						TestVal(regs[REG_AX].word);
 						FLAGS.ZF=ZFpre;
@@ -5102,20 +5102,20 @@ class ProcessorX86
 							FLAGS.OF=true;
 							FLAGS.CF=true;
 						}
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: imul
 				case 0x05:
 					{
-						
+
 						//Instruction name
 						INSTR_NAME("imul Eb");
 						int8_t imm8=cast(int8_t)CodeFetchB(0); // VERY TEST NEEDED 1/0
-						
+
 						regs[REG_AX].hfword[l]=cast(int8_t)(cast(uint8_t)regs[REG_AX].hfword[l]*imm8);
 						if(regs[REG_AX].hfword[l]==regs[REG_AX].word)
 						{
@@ -5127,18 +5127,18 @@ class ProcessorX86
 							FLAGS.CF=true;
 							FLAGS.OF=true;
 						}
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: div
 				case 0x06:
 					{
 						//Instruction name
 						INSTR_NAME("div Eb");
-						
+
 						if(*source==0)
 						{
 							x86log.log("Divide exception!");
@@ -5155,14 +5155,14 @@ class ProcessorX86
 						}
 						break;
 					}
-					
+
 					//asm: idiv
 					//To-do: Test!
 				case 0x07:
 					{
 						//Instruction name
 						INSTR_NAME("idiv Eb");
-						
+
 						if(*source==0)
 						{
 							x86log.log("Divide exception!");
@@ -5190,7 +5190,7 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: GRP3b
 		case 0xF7:
 			{
@@ -5208,39 +5208,39 @@ class ProcessorX86
 					{
 						//Instruction name
 						INSTR_NAME("test Eb Ib");
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						ushort imm16=CodeFetchW(0);
 						ushort temp=*source & imm16;
 						TestVal(temp);
-						
+
 						FLAGS.CF=false;
 						FLAGS.OF=false;
 						IP.word+=2;
-						
+
 						break;
 					}
 
-					//asm: not 
+					//asm: not
 				case 0x02:
 					{
 						//Instruction name
 						INSTR_NAME("not Eb");
-						
+
 						//*source=~*source;
 						*source=cast(ushort)(~cast(int)*source);
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: neg
 				case 0x03:
 					{
 						//Instruction name
 						INSTR_NAME("neg Eb");
-						
+
 						FLAGS.CF=(!*source) ? false : true;
 						//*source=-*source;
 						*source=cast(ushort)(-cast(int)*source);
@@ -5250,18 +5250,18 @@ class ProcessorX86
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: mul
 				case 0x04:
 					{
 						//Instruction name
 						INSTR_NAME("mul Eb");
-						
+
 						uint32_t result=regs[REG_AX].word*(*source);
-						
+
 						regs[REG_AX].word=result&0xFFFF;
 						regs[REG_DX].word=result>>16&0xFFFF;
-						
+
 						bool ZFpre=FLAGS.ZF;
 						TestVal(cast(ushort)result);
 						FLAGS.ZF=ZFpre;
@@ -5275,20 +5275,20 @@ class ProcessorX86
 							FLAGS.OF=true;
 							FLAGS.CF=true;
 						}
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: imul
 				case 0x05:
 					{
-						
+
 						//Instruction name
 						INSTR_NAME("imul Eb");
 						int8_t imm8=cast(int8_t)CodeFetchB(1);
-						
+
 						regs[REG_AX].hfword[l]=cast(int8_t)(cast(uint8_t)regs[REG_AX].hfword[l]*imm8);
 						if(regs[REG_AX].hfword[l]==regs[REG_AX].word)
 						{
@@ -5300,18 +5300,18 @@ class ProcessorX86
 							FLAGS.CF=true;
 							FLAGS.OF=true;
 						}
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: div
 				case 0x06:
 					{
 						//Instruction name
 						INSTR_NAME("div Eb");
-						
+
 						uint32_t dx_ax=(regs[REG_DX].word<<16)+regs[REG_AX].word;
 
 						if(*source==0)
@@ -5328,14 +5328,14 @@ class ProcessorX86
 						}
 						break;
 					}
-					
+
 					//asm: idiv
 					//To-do: Test!
 				case 0x07:
 					{
 						//Instruction name
 						INSTR_NAME("idiv Eb");
-						
+
 						int32_t dx_ax=(regs[REG_DX].word<<16)+regs[REG_AX].word;
 
 						if(*source==0)
@@ -5350,7 +5350,7 @@ class ProcessorX86
 							IP.word+=2;
 							AdjustIP(IP, modrm);
 						}
-						
+
 						break;
 					}
 					// INVALID OPCODE!
@@ -5364,76 +5364,76 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: 	clc
 		case 0xF8:
 			{
 				//Instruction name
 				INSTR_NAME("clc");
-				
+
 				FLAGS.CF=false;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: 	stc
 		case 0xF9:
 			{
 				//Instruction name
 				INSTR_NAME("stc");
-				
+
 				FLAGS.CF=true;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: 	cli
 		case 0xFA:
 			{
 				//Instruction name
 				INSTR_NAME("cli");
-				
+
 				FLAGS.IF=false;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: 	sti
 		case 0xFB:
 			{
 				//Instruction name
 				INSTR_NAME("sti");
-				
+
 				FLAGS.IF=true;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: 	cld
 		case 0xFC:
 			{
 				//Instruction name
 				INSTR_NAME("cld");
-				
+
 				FLAGS.DF=false;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: 	std
 		case 0xFD:
 			{
 				//Instruction name
 				INSTR_NAME("std");
-				
+
 				FLAGS.DF=true;
 				IP.word+=1;
 				break;
 			}
-			
+
 			//asm: GRP4
 		case 0xFE:
-			{				
+			{
 				//Retrieve operands
 				uint8_t *dest; //Not used here
 				uint8_t *source;
@@ -5443,34 +5443,34 @@ class ProcessorX86
 				switch(regfld)
 				{
 					//asm: inc
-				case 0x00: 
+				case 0x00:
 					{
 						//Instruction name
 						INSTR_NAME("inc r/m8");
-						
+
 						bool preCF=FLAGS.CF;
 						CheckAdd8(*source, 1);
 						*source+=1;
 						FLAGS.CF=preCF;
 						TestVal(*source);
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: dec
 				case 0x01:
 					{
 						//Instruction name
 						INSTR_NAME("dec r/m8");
-						
+
 						bool preCF=FLAGS.CF;
 						CheckSub8(*source, 1);
 						*source-=1;
 						FLAGS.CF=preCF;
 						TestVal(*source);
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
@@ -5486,11 +5486,11 @@ class ProcessorX86
 				}
 				break;
 			}
-			
+
 			//asm: GRP5
 		case 0xFF:
 			{
-				
+
 				//Retrieve operands
 				uint16_t *dest; //Not used here
 				uint16_t *source;
@@ -5500,39 +5500,39 @@ class ProcessorX86
 				switch(regfld)
 				{
 					//asm: inc
-				case 0x00: 
+				case 0x00:
 					{
 						//Instruction name
 						INSTR_NAME("inc r/m16");
-						
+
 						bool preCF=FLAGS.CF;
 						CheckAdd16(*source, 1);
 						*source+=1;
 						FLAGS.CF=preCF;
 						TestVal(*source);
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: dec
 				case 0x01:
 					{
 						//Instruction name
 						INSTR_NAME("dec r/m16");
-						
+
 						bool preCF=FLAGS.CF;
 						CheckSub16(*source, 1);
 						*source-=1;
 						FLAGS.CF=preCF;
 						TestVal(*source);
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						break;
 					}
-					
+
 					//asm: call
 				case 0x02:
 					{
@@ -5544,16 +5544,16 @@ class ProcessorX86
 						IP.word=*source;
 						break;
 					}
-					
+
 					//asm: call far
 					//To-do: Check if working correctly
 				case 0x03:
 					{
 						INSTR_NAME("call Mp");
-						
+
 						//Retrieve operands
 						Pointer8086_32bit* target=cast(Pointer8086_32bit*)source;
-						
+
 						IP.word+=2;
 						AdjustIP(IP, modrm);
 						push16(CS.word);
@@ -5562,36 +5562,36 @@ class ProcessorX86
 						IP.word=target.lowpart;
 						break;
 					}
-					
+
 					//asm: JMP absolute
 				case 0x04:
 					{
 						//Instruction name
 						INSTR_NAME("jmp absolute");
-						
+
 						IP.word=*source;
 						break;
 					}
-					
+
 					//asm: jmp far
 				case 0x05:
 					{
 						//Instruction name
 						INSTR_NAME("jmp Mp");
-						
+
 						Pointer8086_32bit* target=cast(Pointer8086_32bit*)source;
-						
+
 						CS.word=target.highpart;
 						IP.word=target.lowpart;
 						break;
 					}
-					
+
 					//asm: push r/m16
 				case 0x06:
 					{
 						//Instruction name
 						INSTR_NAME("push r/m16");
-						
+
 						push16(*source);
 						IP.word+=2;
 						AdjustIP(IP, modrm);
@@ -5624,11 +5624,11 @@ class ProcessorX86
 			DumpCPUStateToInstFile();
 			x86instr.logf(format!"\nStack content, relative to SP:\n[SP+8]\t0x%04X\n[SP+6]\t0x%04X\n[SP+4]\t0x%04X\n[SP+2]\t0x%04X\n[SP]\t0x%04X\n[SP-2]\t0x%04X\n[SP-4]\t0x%04X\n[SP-6]\t0x%04X\n[SP-8]\t0x%04X"(RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word+8)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word+6)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word+4)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word+2)), RAM.ReadMemory16(SS.word, regs[REG_SP].word), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word-2)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word-4)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word-6)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word-8))));
 			x86instr.logf(format!"\nStack content, relative to BP:\n[BP+8]\t0x%04X\n[BP+6]\t0x%04X\n[BP+4]\t0x%04X\n[BP+2]\t0x%04X\n[BP]\t0x%04X\n[BP-2]\t0x%04X\n[BP-4]\t0x%04X\n[BP-6]\t0x%04X\n[BP-8]\t0x%04X"(RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word+8)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word+6)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word+4)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word+2)), RAM.ReadMemory16(SS.word, regs[REG_BP].word), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word-2)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word-4)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word-6)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word-8))));
-			
+
 			char* ds_si_str=cast(char*)RAM.GetAbsAddress8(DS.word, regs[REG_SI].word);
 			char* es_di_str=cast(char*)RAM.GetAbsAddress8(ES.word, regs[REG_DI].word);
 			char* ds_ax_str=cast(char*)RAM.GetAbsAddress8(DS.word, regs[REG_AX].word);
-			
+
 			if(ds_si_str!=null)
 			{
 				if(strlen(ds_si_str)<=max_str_lenght && strlen(ds_si_str))
@@ -5636,7 +5636,7 @@ class ProcessorX86
 					x86instr.logf(format!"\nDS:SI: %s "(fromStringz(ds_si_str)));
 				}
 			}
-			
+
 			if(es_di_str!=null)
 			{
 				if(strlen(es_di_str)<=max_str_lenght && strlen(ds_si_str))
@@ -5644,7 +5644,7 @@ class ProcessorX86
 					x86instr.logf(format!"\nES:DI: %s"(fromStringz(es_di_str)));
 				}
 			}
-			
+
 			if(ds_ax_str!=null)
 			{
 				if(strlen(ds_ax_str)<=max_str_lenght && strlen(ds_si_str))
@@ -5652,7 +5652,7 @@ class ProcessorX86
 					x86instr.logf(format!"\nDS:AX: %s"(fromStringz(ds_ax_str)));
 				}
 			}
-			
+
 			x86instr.logf("\nBytes:");
 			string formattedstring;
 			for(ubyte i=0; i<GetIP-prevIP; i++)
@@ -5671,13 +5671,13 @@ class ProcessorX86
 			}
 		}
 	}
-	
+
 	public void PrintStackToScreen()
 	{
 		writeln(format!"\nStack content, relative to SP:\n[SP+4]\t0x%04X\n[SP+2]\t0x%04X\n[SP]\t0x%04X\n[SP-2]\t0x%04X\n[SP-4]\t0x%04X"(RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word+4)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word+2)), RAM.ReadMemory16(SS.word, regs[REG_SP].word), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word-2)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_SP].word-4))));
 		writeln(format!"\nStack content, relative to BP:\n[BP+4]\t0x%04X\n[BP+2]\t0x%04X\n[BP]\t0x%04X\n[BP-2]\t0x%04X\n[BP-4]\t0x%04X"(RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word+4)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word+2)), RAM.ReadMemory16(SS.word, regs[REG_BP].word), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word-2)), RAM.ReadMemory16(SS.word, cast(ushort)(regs[REG_BP].word-4))));
 	}
-	
+
 	//Nothing to do here...
 	void FPU_Instruction_Handler(ubyte opcode)
 	{
@@ -5701,23 +5701,23 @@ class ProcessorX86
 			}
 		}
 	}
-	
+
 	private void TestVal(uint8_t val)
 	{
 		FLAGS.ZF=(val==0x00);
 		FLAGS.SF=(val>>7 & 0x1);
-		
+
 		FLAGS.PF=parity[val];
 	}
-	
+
 	private void TestVal(uint16_t val)
 	{
 		FLAGS.ZF=(val==0x00);
 		FLAGS.SF=val>>15 & 0x1;
-		
+
 		FLAGS.PF=parity[val&0xFF];
 	}
-	
+
 	void CheckSub8(ubyte num1, ubyte num2, ubyte carry=0)
 	{
 		ushort result=cast(ushort)(cast(ushort)num1-cast(ushort)num2-cast(ushort)carry);
@@ -5746,7 +5746,7 @@ class ProcessorX86
 			FLAGS.AF=false;
 		}
 	}
-	
+
 	void CheckSub16(ushort num1, ushort num2, ushort carry=0)
 	{
 		uint result=cast(uint)(cast(uint)num1-cast(uint)num2-cast(uint)carry);
@@ -5775,7 +5775,7 @@ class ProcessorX86
 			FLAGS.AF=false;
 		}
 	}
-	
+
 	void CheckAdd8(ubyte num1, ubyte num2, ubyte carry=0)
 	{
 		ushort result=cast(ushort)(cast(ushort)num1+cast(ushort)num2+cast(ushort)carry);
@@ -5804,7 +5804,7 @@ class ProcessorX86
 			FLAGS.AF=false;
 		}
 	}
-	
+
 	void CheckAdd16(ushort num1, ushort num2, ushort carry=0)
 	{
 		uint result=cast(uint)(cast(uint)num1+cast(uint)num2+cast(uint)carry);
@@ -5833,42 +5833,42 @@ class ProcessorX86
 			FLAGS.AF=false;
 		}
 	}
-	
+
 	// Use only for loading ROM/RAM and DMA
 	public ref MemoryX86 ExposeRam()
 	{
 		return RAM;
 	}
-	
+
 	// Raise Interrupt
 	private void RaiseInt(ubyte num, ubyte steps_back=0)
-	{ 
+	{
 		//Push necessary registers on stack
 		push16(FLAGS.word);
 		push16(CS.word);
 		push16(cast(ushort)(IP.word-steps_back));
-		
+
 		//Disable interrupts and no single-stepping
 		FLAGS.IF=false;
 		FLAGS.TF=false;
-		
+
 		IP.word=RAM.ReadMemory16(0x0000, 0x0004*num);
 		CS.word=RAM.ReadMemory16(0x0000, 0x0004*num+2);
 	}
-	
+
 	// Raise Non-Maskable Interrupt
 	private void RaiseNMI()
 	{
 		RaiseInt(EXCEPTION_NMI);
 		NMIretawaiting=true;
 	}
-	
+
 	//Public function for NMI
 	public void SignalNMI()
 	{
 		RaiseNMI();
 	}
-	
+
 	//Public function for interrupt
 	public void SignalInt(ubyte num)
 	{
@@ -5879,57 +5879,57 @@ class ProcessorX86
 			RaiseInt(num);
 		}
 	}
-	
+
 	public void SignalReset()
 	{
 		// Set reset vector at 0xFFFF:0x0000, but
 		// we now use 286 style reset vector 0xF000:0xFFF0
 		CS.word=0xF000;
 		IP.word=0xFFF0;
-		
+
 		// Set more registers
 		SS.word=0x0000;
 		//FLAGS.word=0xF000;
 		FLAGS.word=0x0000;
 		DS.word=0x000;
 		ES.word=0x000;
-		
+
 		x86log.logf("Reset line is high! Processor was reset!");
 	}
-	
+
 	public void SetInOutFunc(void delegate(ushort, ref ushort, bool) func)
 	{
 		inoutfunc=func;
 	}
-	
+
 	public void SetVMHandler(void delegate(ProcessorX86) func)
 	{
 		VMInvokeHandler=func;
 	}
-	
+
 	private void OutPort(ushort port, ushort data)
 	{
 		if(inoutfunc!=null) inoutfunc(port, data, false);
 	}
-	
-	
+
+
 	private ushort InPort(ushort port)
 	{
 		uint16_t data;
 		if(inoutfunc!=null) inoutfunc(port, data, true);
 		return data;
 	}
-	
+
 	public uint16_t GetIP()
 	{
 		return IP.word;
 	}
-	
+
 	public uint16_t GetCS()
 	{
 		return CS.word;
 	}
-	
+
 	public void DumpCPUStateToConsole()
 	{
 		x86log.logf("CPU states:");
@@ -5940,12 +5940,12 @@ class ProcessorX86
 		x86log.logf("FLAGS=0x%04X", FLAGS.word);
 		x86log.logf("CF=%s | PF=%s | AF=%s | ZF=%s | SF=%s\nTF=%s | IF=%s | DF=%s | OF=%s", cast(int)FLAGS.CF, cast(int)FLAGS.PF, cast(int)FLAGS.AF, cast(int)FLAGS.ZF, cast(int)FLAGS.SF, cast(int)FLAGS.TF, cast(int)FLAGS.IF, cast(int)FLAGS.DF, cast(int)FLAGS.OF);
 	}
-	
+
 	public void DumpCPUStateToInstFile()
 	{
 		x86instr.logf(format!"\nCPU states:\nAX=0x%04X\tBX=0x%04X\tCX=0x%04X\tDX=0x%04X\nSI=0x%04X\tDI=0x%04X\tBP=0x%04X\tSP=0x%04X\nCS=0x%04X\tSS=0x%04X\tDS=0x%04X\tES=0x%04X\nIP=0x%04X\nFLAGS=0x%04X\nCF=%s | PF=%s | AF=%s | ZF=%s | SF=%s\nTF=%s | IF=%s | DF=%s | OF=%s"(regs[REG_AX].word, regs[REG_BX].word, regs[REG_CX].word, regs[REG_DX].word, regs[REG_SI].word, regs[REG_DI].word, regs[REG_BP].word, regs[REG_SP].word, CS.word, SS.word, DS.word, ES.word, IP.word, FLAGS.word, cast(int)FLAGS.CF, cast(int)FLAGS.PF, cast(int)FLAGS.AF, cast(int)FLAGS.ZF, cast(int)FLAGS.SF, cast(int)FLAGS.TF, cast(int)FLAGS.IF, cast(int)FLAGS.DF, cast(int)FLAGS.OF));
 	}
-	
+
 	public void DumpCPUStateToScreen()
 	{
 		writefln("CPU states:");
@@ -5956,83 +5956,83 @@ class ProcessorX86
 		writefln("FLAGS=0x%04X", FLAGS.word);
 		writefln("CF=%s | PF=%s | AF=%s | ZF=%s | SF=%s\nTF=%s | IF=%s | DF=%s | OF=%s", cast(int)FLAGS.CF, cast(int)FLAGS.PF, cast(int)FLAGS.AF, cast(int)FLAGS.ZF, cast(int)FLAGS.SF, cast(int)FLAGS.TF, cast(int)FLAGS.IF, cast(int)FLAGS.DF, cast(int)FLAGS.OF);
 	}
-	
+
 	private void INSTR_NAME(string text)
 	{
 		lastinstructionname=text;
 	}
-	
+
 	public string GetInstructionNameLast()
 	{
 		return lastinstructionname;
 	}
-	
+
 	private uint8_t CodeFetchB(int32_t pos=0)
 	{
 		return RAM.ReadMemory8(CS.word, cast(ushort)(IP.word+pos));
 	}
-	
+
 	private uint16_t CodeFetchW(int32_t pos=0)
 	{
 		return RAM.ReadMemory16(CS.word, cast(ushort)(IP.word+pos));
 	}
-	
+
 	public void SetIP(uint16_t addr)
 	{
 		IP.word=addr;
 	}
-	
+
 	public void SetInstructionLog(bool state)
 	{
 		logeveryinstruction=state;
 	}
-	
+
 	public bool GetLogState()
 	{
 		return logeveryinstruction;
 	}
-	
+
 	ref reg16 AX() {return regs[REG_AX];}
-	
+
 	ref reg16 BX() {return regs[REG_BX];}
-	
+
 	ref reg16 CX() {return regs[REG_CX];}
-	
+
 	ref reg16 DX() {return regs[REG_DX];}
 
 	ref reg16 SI() {return regs[REG_SI];}
-	
+
 	ref reg16 DI() {return regs[REG_DI];}
-	
+
 	ref reg16 BP() {return regs[REG_BP];}
-	
+
 	ref reg16 SP() {return regs[REG_SP];}
-	
+
 	ref reg16 IP_reg() {return IP;}
-	
+
 	ref FLAGSreg16 FLAGS_reg() {return FLAGS;}
-	
+
 	ref reg16 CS_reg() {return CS;}
-	
+
 	ref reg16 DS_reg() {return DS;}
-	
+
 	ref reg16 SS_reg() {return SS;}
-	
+
 	ref reg16 ES_reg() {return ES;}
-	
+
 	public void SetLinearBreakpoint(ushort segment, ushort offset)
 	{
 		isexecbreakpointactive=true;
 		BP_CS=segment;
 		BP_IP=offset;
 	}
-	
+
 	public bool InterruptsCanBeServiced()
 	{
 		return FLAGS.IF;
 	}
-	
-	
+
+
 	private
 	{
 		reg16[8] regs;
@@ -6041,31 +6041,31 @@ class ProcessorX86
 		reg16 DS;
 		reg16 SS;
 		reg16 ES;
-		
+
 		FLAGSreg16 FLAGS;
-		
+
 		reg16 IP;
-		
+
 		MemoryX86 RAM;
 		IBM_PC_COMPATIBLE machine;
-		
+
 		void delegate(ushort, ref ushort, bool) inoutfunc;
 		void delegate(ProcessorX86) VMInvokeHandler;
-		
+
 		bool halted;
-		
+
 		bool NMIretawaiting;
 		bool externalintr;
 		bool logeveryinstruction;
 		ubyte intr_number;
-		
+
 		ushort prevCS;
 		ushort prevIP;
-		
+
 		ushort BP_CS;
 		ushort BP_IP;
 		bool isexecbreakpointactive;
-		
+
 		string lastinstructionname;
 	}
 }

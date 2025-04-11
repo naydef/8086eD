@@ -3,7 +3,7 @@ module IBM_PIC;
 import ibm_pc_com;
 import std.stdio;
 import simplelogger;
-import x86_processor;
+import cpu.x86.processor;
 
 class PIC
 {
@@ -16,7 +16,7 @@ class PIC
 		CPU=pc.GetCPU();
 		base=0x08;
 	}
-	
+
 	public void PICControlPortInput(ushort port, ref ushort value, bool infunc)
 	{
 		switch(port)
@@ -64,7 +64,7 @@ class PIC
 			}
 		}
 	}
-	
+
 	public void AcknowledgeInterrupts()
 	{
 		if(CPU.InterruptsCanBeServiced())
@@ -83,7 +83,7 @@ class PIC
 			}
 		}
 	}
-	
+
 	public void IRQ(ubyte num)
 	{
 		if(num>=8) //Everything within bounds
@@ -92,7 +92,7 @@ class PIC
 		}
 		IRR|=1<<num;
 	}
-	
+
 	private IBM_PC_COMPATIBLE pc;
 	private ProcessorX86 CPU;
 	private ubyte base;

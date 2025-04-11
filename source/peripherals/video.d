@@ -1,4 +1,4 @@
-module video_controller;
+module video;
 
 import ibm_pc_com;
 import std.stdio;
@@ -7,7 +7,7 @@ import simplelogger;
 import x86_memory;
 import std.concurrency;
 import core.sync.mutex;
-import sfml_interfacing;
+import sfml_interface;
 import cpu.decl;
 
 
@@ -29,11 +29,11 @@ class Video_Controller
 		pc.AddINOUTHandler(0x03BA, &VideoControlPortInput); // I/O address - CRT status register
 		register_2=0x0;
 	}
-	
-	/* 
+
+	/*
 	Register 1:
 	|text mode library enable bit|clear screen|res|res|res|res|res|res|
-	
+
 	Register 2:
 	|16-bit video base|
 	*/
@@ -95,7 +95,7 @@ class Video_Controller
 			}
 		}
 	}
-	
+
 	private void HandleOutputToVGAReg(ushort index, ushort val)
 	{
 		switch(index)
@@ -143,7 +143,7 @@ class Video_Controller
 			}
 		}
 	}
-	
+
 
 	//We also "think" here
 	public void AcknowledgeInterrupts()
@@ -185,7 +185,7 @@ class Video_Controller
 				video_state.baseRamAddress=0xb8000;
 			}
 		}
-		
+
 		//Random stuff to make things work
 		if(counter%16==0)
 		{

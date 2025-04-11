@@ -1,4 +1,4 @@
-module sfml_interfacing;
+module sfml_interface;
 
 import core.thread;
 import dsfml.graphics;
@@ -42,7 +42,7 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 	view_window.display();
 	view_window.setFramerateLimit(40);
 	auto startTime=MonoTime.currTime;
-	
+
 	while(view_window.isOpen())
 	{
 		//I live!
@@ -76,7 +76,7 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 			view_window.clear(Color.Black);
 			continue;
 		}
-		
+
 		switch(video_state.vmode)
 		{
 		case 0x0:
@@ -121,14 +121,14 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 						cga_color_reg temp;
 						temp.data=video_state.color_reg.data;
 						drawscreen.setPixel(w, h, (colour>>6&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour>>6&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
-						
+
 						drawscreen.setPixel(w+1, h, (colour>>4&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour>>4&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
-						
+
 						drawscreen.setPixel(w+2, h, (colour>>2&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour>>2&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
-						
+
 						drawscreen.setPixel(w+3, h, (colour&0b11) ? cga_color_array_mode_4[temp.paletteSet][(colour&0b11)|temp.brightForeground<<2] : GetColorFrom3or4B(temp.backgroundColour));
-						
-						
+
+
 					}
 				}
 				break;
@@ -156,21 +156,21 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 						cga_color_reg temp;
 						temp.data=video_state.color_reg.data;
 						drawscreen.setPixel(w, h, (colour>>7&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
-						
+
 						drawscreen.setPixel(w+1, h, (colour>>6&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
-						
+
 						drawscreen.setPixel(w+2, h, (colour>>5&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
-						
+
 						drawscreen.setPixel(w+3, h, (colour>>4&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
-						
+
 						drawscreen.setPixel(w+4, h, (colour>>3&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
-						
+
 						drawscreen.setPixel(w+5, h, (colour>>2&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
-						
+
 						drawscreen.setPixel(w+6, h, (colour>>1&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
-						
+
 						drawscreen.setPixel(w+7, h, (colour&0b1) ? GetColorFrom3or4B(temp.backgroundColour) : cga_color_array_text_mode[0]);
-						
+
 					}
 				}
 				break;
@@ -232,7 +232,7 @@ void Render_Keyboard_Thread(shared(int) *keypresstopass, shared(ubyte*) RamPtr, 
 }
 
 Color[][] cga_color_array_mode_4=[
-[	
+[
 	Color(0x00, 0x00, 0x00), //Dummy
 	Color(0x00, 0xAA, 0x00),
 	Color(0xAA, 0x00, 0x00),

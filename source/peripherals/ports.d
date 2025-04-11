@@ -1,9 +1,9 @@
-module x86_ports;
+module ports;
 
 import ibm_pc_com;
 import std.stdio;
 import simplelogger;
-import x86_memory;
+import memory.x86.memory;
 
 class Port_Handler
 {
