@@ -11,6 +11,8 @@ import core.thread;
 import core.sync.mutex;
 import sfml_interface;
 import peripherals.video;
+import std.container.dlist;
+import arsd.simpledisplay;
 
 
 class XT_Keyboard
@@ -24,6 +26,7 @@ class XT_Keyboard
 		pc.AddINOUTHandler(0x0061, &PortIO);
 		intr_controller=param2;
 		spawn(&Render_Keyboard_Thread, &keypress, cast(shared(ubyte*))memory.GetRamPointer());
+		if(!keyboardQueueMtx) keyboardQueueMtx = new Object();
 	}
 
 
@@ -84,15 +87,38 @@ class XT_Keyboard
 
 	void AcknowledgeInterrupts()
 	{
-		if(keypress!=-1)
+		Key key;
+		synchronized(XT_Keyboard.keyboardQueueMtx)
 		{
-			auto scancode2=NCursesToScanCode(keypress);
-			if(scancode2!=0)
+			if(XT_Keyboard.kbEventQueue.empty()) return;
+			key = XT_Keyboard.kbEventQueue.back();
+			XT_Keyboard.kbEventQueue.removeBack();
+		}
+		auto scancode2=ArsdToScanCode(key);
+		if(scancode2!=0)
+		{
+			scancode=scancode2;
+			status|=1;
+			intr_controller.IRQ(1);
+			keypress=-1;
+		}
+	}
+
+	ubyte ArsdToScanCode(Key key)
+	{
+		import std.stdio;writefln("2. Keycode: %s", key);
+		switch(key)
+		{
+			case Key.Space:
 			{
-				scancode=scancode2;
-				status|=1;
-				intr_controller.IRQ(1);
-				keypress=-1;
+				return 0x0E;
+			}
+
+			default:
+			{
+				import std.conv : to;
+				//assert(0, "Unhandled keycode" ~ to!string(key));
+				return 0xFF;
 			}
 		}
 	}
@@ -497,4 +523,6 @@ class XT_Keyboard
 	private ubyte scancode;
 	private ubyte status;
 	shared int keypress;
+	__gshared Object keyboardQueueMtx;
+	__gshared DList!Key kbEventQueue;
 }
