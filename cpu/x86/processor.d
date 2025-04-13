@@ -23,7 +23,7 @@ struct Pointer8086_32bit
 	int16_t highpart;
 }
 
-class ProcessorX86
+final class ProcessorX86
 {
 	this(IBM_PC_COMPATIBLE param)
 	{
@@ -97,7 +97,7 @@ class ProcessorX86
 		return halted;
 	}
 
-	final private void AdjustIP(ref reg16 IP, uint8_t modrm)
+	private void AdjustIP(ref reg16 IP, uint8_t modrm)
 	{
 		switch(MOD(modrm))
 		{
@@ -140,7 +140,7 @@ class ProcessorX86
 		}
 	}
 
-	final private ref reg16 SegIndexToSegReg(uint8_t index)
+	private ref reg16 SegIndexToSegReg(uint8_t index)
 	{
 		switch(index)
 		{
@@ -171,7 +171,7 @@ class ProcessorX86
 		}
 	}
 
-	final string RegWordIndexToString(int reg)
+	string RegWordIndexToString(int reg)
 	{
 		switch(reg)
 		{
@@ -214,33 +214,33 @@ class ProcessorX86
 		}
 	}
 
-	final private void push16(uint16_t val)
+	private void push16(uint16_t val)
 	{
 		regs[REG_SP].word-=2;
 		RAM.WriteMemory(SS.word, regs[REG_SP].word, val);
 	}
 
-	final private void push8(uint8_t val)
+	private void push8(uint8_t val)
 	{
 		regs[REG_SP].word-=2;
 		RAM.WriteMemory(SS.word, regs[REG_SP].word, cast(uint16_t)val);
 	}
 
-	final private uint16_t pop16()
+	private uint16_t pop16()
 	{
 		uint16_t data=RAM.ReadMemory16(SS.word, regs[REG_SP].word);
 		regs[REG_SP].word+=2;
 		return data;
 	}
 
-	final private void TestCF(uint8_t byte1,uint8_t byte2)
+	private void TestCF(uint8_t byte1,uint8_t byte2)
 	{
 		FLAGS.CF=(cast(uint16_t)byte1+cast(uint16_t)byte2)&0x8000 ? true : false;
 	}
 
 
 	//Special one for asm: lea
-	final private uint16_t Lea16(uint8_t modrm, uint16_t bytes2afterinstruction)
+	private uint16_t Lea16(uint8_t modrm, uint16_t bytes2afterinstruction)
 	{
 		switch(MOD(modrm))
 		{
@@ -375,7 +375,7 @@ class ProcessorX86
 	}
 
 	//Note: oper1 is ALWAYS the DESTINATION, oper2 is ALWAYS the SOURCE! Pass address of the pointers!
-	final private void SetupOperands(uint8_t modrm, uint8_t opcode, uint16_t bytes2afterinstruction, void** oper1, void** oper2, uint8_t seg=DS_SEGMENT)
+	private void SetupOperands(uint8_t modrm, uint8_t opcode, uint16_t bytes2afterinstruction, void** oper1, void** oper2, uint8_t seg=DS_SEGMENT)
 	{
 		switch(MOD(modrm))
 		{
@@ -558,7 +558,7 @@ class ProcessorX86
 		}
 	}
 
-	final public void ExecuteInstruction()
+	public void ExecuteInstruction()
 	{
 		uint8_t prefix=CodeFetchB(0);
 		uint8_t currsegment=NO_SEGMENT;

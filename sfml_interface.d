@@ -36,16 +36,20 @@ void Render_Keyboard_Thread(shared(int)* keypresstopass, shared(ubyte*) RamPtr)
 	//bool[0xFF] alreadyPressed;
 	auto view_window = new SimpleWindow(640, 480, "Graphics - 8086eD");
 	view_window.eventLoop(
-	15,
+	28,
 	delegate ()
 	{
 		auto painter = view_window.draw();
 		painter.clear(Color.black());
 
+		Image img = new Image(640, 480, false, false);
+		scope(exit) destroy(img);
+
 		void setPixel(int x, int y, Color clr)
 		{
-			painter.outlineColor = clr;
-			painter.drawPixel(Point(x, y));
+			//painter.outlineColor = clr;
+			//painter.drawPixel(Point(x, y));
+			img.putPixel(x, y, clr);
 		}
 
 		static ushort currwidth=640;
@@ -248,6 +252,7 @@ void Render_Keyboard_Thread(shared(int)* keypresstopass, shared(ubyte*) RamPtr)
 				}
 			}
 		}
+		painter.drawImage(Point(0, 0), img);
 
 	},
 	delegate (KeyEvent event)
