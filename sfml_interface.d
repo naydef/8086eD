@@ -33,6 +33,7 @@ shared(VideoState) video_state;
 
 void Render_Keyboard_Thread(shared(int)* keypresstopass, shared(ubyte*) RamPtr)
 {
+	//bool[0xFF] alreadyPressed;
 	auto view_window = new SimpleWindow(640, 480, "Graphics - 8086eD");
 	view_window.eventLoop(
 	15,
@@ -233,10 +234,11 @@ void Render_Keyboard_Thread(shared(int)* keypresstopass, shared(ubyte*) RamPtr)
 			if(video_state.active_cursor)
 			{
 				static bool switchvar;
-				//if(MonoTime.currTime-startTime>=dur!"msecs"(533)) // 1000/1.875=533.3333
+				static MonoTime startTime;
+				if(MonoTime.currTime-startTime>=dur!"msecs"(533)) // 1000/1.875=533.3333
 				{
-				//	switchvar=!switchvar;
-				//	startTime=MonoTime.currTime;
+					switchvar=!switchvar;
+					startTime=MonoTime.currTime;
 				}
 				if(switchvar)
 				{
@@ -250,11 +252,22 @@ void Render_Keyboard_Thread(shared(int)* keypresstopass, shared(ubyte*) RamPtr)
 	},
 	delegate (KeyEvent event)
 	{
-		import std.stdio;writefln("Event: %s", event);
+		/+
+		if(event.pressed)
+		{
+			if(alreadyPressed[event.hardwareCode])
+			{
+				return;
+			}
+			alreadyPressed[event.hardwareCode] = true;
+		}
+		else alreadyPressed[event.hardwareCode] = false;
+		+/
+		//import std.stdio;writefln("Event: %s", event);
 		import peripherals.keyboard;
 		synchronized(XT_Keyboard.keyboardQueueMtx)
 		{
-			XT_Keyboard.kbEventQueue.insertFront(event.key);
+			XT_Keyboard.kbEventQueue.insertFront(KeyCode(event.key, event.pressed));
 		}
 	}
 	);

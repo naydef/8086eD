@@ -1,2 +1,8 @@
 /app.o
 /app
+/firmware/pcxtbios.id0
+/firmware/pcxtbios.id1
+/firmware/pcxtbios.nam
+/firmware/pcxtbios.til
+/instructions.log
+/turboD86.log

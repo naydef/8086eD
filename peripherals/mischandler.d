@@ -23,36 +23,32 @@ class Misc_Handler
 
 	void VmInvokeHandler(ProcessorX86 CPU)
 	{
+		void setFlagsCarryState(bool state)
+		{
+			FLAGSreg16 flags;
+			flags.word=memory.ReadMemory16(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4));
+			flags.CF=state;
+			memory.WriteMemory(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4), flags.word);
+		}
 		x86log.logf("int13h with ah=0x%02X", CPU.AX.hfword[h]);
 		switch(CPU.AX.hfword[h])
 		{
 			case 0x0:
 			{
-				FLAGSreg16 flags;
-				flags.word=memory.ReadMemory16(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4));
-				flags.CF=false;
-				memory.WriteMemory(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4), flags.word);
+				setFlagsCarryState(false);
 				break;
 			}
 			case 0x1:
 			{
-				FLAGSreg16 flags;
-				flags.word=memory.ReadMemory16(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4));
-				flags.CF=false;
-				memory.WriteMemory(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4), flags.word);
-				CPU.AX.hfword[h]=status;
+				setFlagsCarryState(false);
 				break;
 			}
 			case 0x2:
 			{
 				ubyte[]* target=cast(ubyte[]*)memory.GetAbsAddress16(CPU.ES_reg.word, CPU.BX.word);
-				//To-do: Really change CF flag
 				if((CPU.ES_reg.word*0x10)+CPU.BX.word>0xFFFFF) //Limits!
 				{
-					FLAGSreg16 flags;
-					flags.word=memory.ReadMemory16(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4));
-					flags.CF=true;
-					memory.WriteMemory(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4), flags.word);
+					setFlagsCarryState(true);
 					return;
 				}
 				else
@@ -62,6 +58,12 @@ class Misc_Handler
 				ubyte* targetaddr=memory.GetAbsAddress8(CPU.ES_reg.word, CPU.BX.word);
 				if(CPU.DX.hfword[l]<0x80)
 				{
+					if(!floppyLoaded)
+					{
+						x86log.logf("Floppy image not loaded!");
+						setFlagsCarryState(true);
+						return;
+					}
 					ubyte sectors_count=CPU.AX.hfword[l];
 					ubyte head=CPU.DX.hfword[h];
 					ubyte beginsector=CPU.CX.hfword[l];
@@ -124,10 +126,7 @@ class Misc_Handler
 						//pc.GetVideo().FreeLibrary();
 						x86log.logf("File %s: Exception %s", floppyfile, e.msg);
 						//pc.GetVideo().InitLibrary();
-						FLAGSreg16 flags;
-						flags.word=memory.ReadMemory16(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4));
-						flags.CF=true;
-						memory.WriteMemory(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4), flags.word);
+						setFlagsCarryState(true);
 						//To-do: Do something else rather than return...
 						return;
 					}
@@ -139,23 +138,18 @@ class Misc_Handler
 					}
 					x86log.logf(str);
 					memcpy(targetaddr, data.ptr, sectors_count*512);
-					FLAGSreg16 flags;
-					flags.word=memory.ReadMemory16(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4));
-					flags.CF=false;
-					memory.WriteMemory(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4), flags.word);
+					setFlagsCarryState(false);
 				}
 				else
 				{
 					x86log.logf("Harddrive images not supported, yet!");
+					setFlagsCarryState(true);
 				}
 				break;
 			}
 			default:
 			{
-				FLAGSreg16 flags;
-				flags.word=memory.ReadMemory16(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4));
-				flags.CF=true;
-				memory.WriteMemory(pc.GetCPU().SS_reg.word, cast(ushort)(pc.GetCPU().SP.word+4), flags.word);
+				setFlagsCarryState(true);
 				x86log.logf("Invalid int13h function 0x%02X", CPU.AX.hfword[h]);
 				x86log.logf("Return to CS=0x%04X IP=0x%04X", *memory.GetAbsAddress16(CPU.SS_reg.word, cast(ushort)(CPU.SP.word+2)), *memory.GetAbsAddress16(CPU.SS_reg.word, CPU.SP.word));
 			}
@@ -164,6 +158,7 @@ class Misc_Handler
 
 	void SetFloppyDriveImage(string str)
 	{
+		floppyLoaded=true;
 		floppyimage=File(str, "r+b");
 		floppyfile=str;
 	}
@@ -180,6 +175,7 @@ class Misc_Handler
 	private string floppyfile;
 	private ubyte status;
 
+	bool floppyLoaded=false;
 	File floppyimage;
 	File harddiskimage;
 }
